@@ -1,11 +1,14 @@
 import pytest
 from fastapi.testclient import TestClient
-from app.main import app
+
 from app.database.memory_db import db_instance
+from app.main import app
+
 
 @pytest.fixture
 def client():
     return TestClient(app)
+
 
 @pytest.fixture(autouse=True)
 def clear_database():
@@ -14,6 +17,7 @@ def clear_database():
     yield
     db_instance.clear()
 
+
 @pytest.fixture
 def sample_user_data():
     return {
@@ -21,5 +25,5 @@ def sample_user_data():
         "username": "testuser",
         "first_name": "John",
         "last_name": "Doe",
-        "password": "strongpassword123"
+        "password": "strongpassword123",
     }

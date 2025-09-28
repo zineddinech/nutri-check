@@ -23,6 +23,12 @@ dependencies = [
 packages = [{include = "server", from = "src"}]
 
 
+[tool.poetry.group.dev.dependencies]
+black = "^25.9.0"
+isort = "^6.0.1"
+mypy = "^1.18.2"
+types-passlib = "^1.7.7.20250602"
+
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"

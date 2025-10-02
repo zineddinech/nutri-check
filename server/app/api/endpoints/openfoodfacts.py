@@ -1,7 +1,9 @@
 from fastapi import APIRouter, Query
+
 from app.services.openfoodfacts_service import search_products
 
 router = APIRouter()
+
 
 @router.get("/search")
 def get_products(query: str = Query("chocolat"), page: int = 1, page_size: int = 10):

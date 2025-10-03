@@ -21,7 +21,7 @@ dependencies = [
 ]
 
 [tool.poetry]
-packages = [{include = "server", from = "src"}]
+packages = [{include = "app"}]
 
 
 [tool.poetry.group.dev.dependencies]

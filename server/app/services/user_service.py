@@ -3,7 +3,7 @@ from typing import List, Optional
 from passlib.context import CryptContext
 
 from ..database.memory_db import db_instance
-from ..models.user import User
+from ..models.user import User 
 from ..schemas.user import UserCreate, UserUpdate
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")

@@ -1,16 +1,16 @@
+from sqlalchemy import Column, Integer, String, Boolean, DateTime
 from datetime import datetime
-from typing import Optional
+from server.app.database.database import Base  
 
-from pydantic import BaseModel
+class User(Base):
+    __tablename__ = "users"
 
-
-class User(BaseModel):
-    id: int
-    email: str
-    username: str
-    hashed_password: str
-    first_name: str
-    last_name: str
-    is_active: bool = True
-    created_at: datetime
-    updated_at: datetime
+    id = Column(Integer, primary_key=True, index=True)
+    email = Column(String, unique=True, nullable=False)
+    username = Column(String, unique=True, nullable=False)
+    hashed_password = Column(String, nullable=False)
+    first_name = Column(String, nullable=False)
+    last_name = Column(String, nullable=False)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

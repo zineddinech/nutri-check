@@ -57,7 +57,7 @@ class InMemoryDatabase:
         users_list = list(self.users.values())
         return users_list[skip : skip + limit]
 
-    def update_user(self, user_id: int, update_data: dict) -> Optional[User]:
+    def update_user(self, user_id: int, update_data: dict) -> Optional[User ]:
         """Mettre à jour un utilisateur"""
         user = self.users.get(user_id)
         if not user:
@@ -84,7 +84,7 @@ class InMemoryDatabase:
         user_dict["updated_at"] = datetime.utcnow()
 
         # Créer le nouvel utilisateur
-        updated_user = User(**user_dict)
+        updated_user = user(**user_dict)
 
         # Mettre à jour les index si nécessaire
         if "email" in update_data and update_data["email"] != old_email:

@@ -75,3 +75,26 @@ preview_client:
     - sleep 5
     # Utilise curl pour vérifier si le serveur renvoie un code de statut de succès
     - curl http://localhost:4173
+
+
+# -----------------
+# 4. DEPLOY CLIENT : Déploiement en production
+# -----------------
+deploy_client:
+  extends: .docker_deploy_template # Hérite du modèle
+  stage: deploy
+  script:
+    # Lit la version depuis le fichier package.json
+    - export APP_VERSION=v$(awk -F'"' '/"version":/ {print $4}' client/package.json)
+    - export IMAGE_TAG="$DOCKER_HUB_USER/$CLIENT_APP_NAME:$APP_VERSION"
+
+    # Construit et pousse l'image Docker
+    - echo "Déploiement du client version ${IMAGE_TAG}..."
+  needs:
+    - test_client
+    - preview_client
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      changes:
+        - client/**/*
+        - ci/client.yml

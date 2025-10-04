@@ -98,15 +98,25 @@ test_server:
 # 4. DEPLOY SERVER : Déploiement en production
 # -----------------
 deploy_server:
+  extends: .docker_deploy_template # Hérite du modèle
   stage: deploy
   script:
-    - echo "Script de déploiement..."
-  environment: production
+    # Lit la version depuis le fichier pyproject.toml
+    - export APP_VERSION=v$(grep '^version =' server/pyproject.toml | cut -d '"' -f 2)
+    - export IMAGE_TAG="$DOCKER_HUB_USER/$SERVER_APP_NAME:$APP_VERSION"
+    - echo "Déploiement du server version ${IMAGE_TAG}..."
+
+    # Construit et pousse l'image Docker
+    - docker build -t "$IMAGE_TAG" -f server/Dockerfile server/
+    - docker push "$IMAGE_TAG"
+
+    # Ajoute également le tag 'latest'
+    - docker tag "$IMAGE_TAG" "$DOCKER_HUB_USER/$SERVER_APP_NAME:latest"
+    - docker push "$DOCKER_HUB_USER/$SERVER_APP_NAME:latest"
+  needs:
+    - test_server
   rules:
-    # S'exécute uniquement lors d'un push ou merge sur la branche 'main'
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
       changes:
         - server/**/*
         - ci/server.yml
-  needs:
-    - test_server

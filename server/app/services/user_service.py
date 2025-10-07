@@ -27,6 +27,7 @@ class UserService:
             "username": user_data.username,
             "first_name": user_data.first_name,
             "last_name": user_data.last_name,
+            "is_active":True,
             "hashed_password": UserService.hash_password(user_data.password),
         }
 

@@ -1,0 +1,122 @@
+# -----------------
+# Configuration globale
+# -----------------
+
+image: python:3.13-slim
+
+
+# -----------------
+# 1. LINT SERVER : Vérification rapide du style et de la qualité du code
+# -----------------
+lint_server:
+  stage: lint
+  allow_failure: true
+  script:
+    # Installe Poetry pour exécuter les outils de lint
+    - pip install poetry
+    - poetry config virtualenvs.in-project true
+    - poetry install --no-root --directory server
+    # Exécute les vérifications de formatage et de typage
+    - cd server
+    - poetry run black --check .
+    - poetry run isort --check-only .
+    - poetry run mypy app
+  rules:
+    - if: $CI_PIPELINE_SOURCE == 'merge_request_event'
+      changes:
+        - server/**/*
+        - ci/server.yml
+    - if: $CI_PIPELINE_SOURCE == 'push'
+      changes:
+        - server/**/*
+        - ci/server.yml
+
+
+# -----------------
+# 2. BUILD SERVER : Installation des dépendances et création de l'environnement
+# -----------------
+build_server:
+  stage: build
+  script:
+    # Installe Poetry
+    - pip install poetry
+    # Configure Poetry pour créer l'environnement virtuel dans le dossier du projet
+    - poetry config virtualenvs.in-project true
+    # Installe toutes les dépendances du projet, y compris les dépendances de développement
+    - poetry install --no-root --directory server
+  artifacts:
+    paths:
+      # Sauvegarde le dossier de l'environnement virtuel (.venv) en tant qu'artefact
+      - server/.venv/
+    expire_in: 1 hour # L'artefact sera supprimé après 1 heure
+  rules:
+    - if: $CI_PIPELINE_SOURCE == 'merge_request_event'
+      changes:
+        - server/**/*
+        - ci/server.yml
+    - if: $CI_PIPELINE_SOURCE == 'push'
+      changes:
+        - server/**/*
+        - ci/server.yml
+
+
+# -----------------
+# 3. TEST SERVER : Exécution des tests en utilisant l'environnement construit
+# -----------------
+test_server:
+  stage: test
+  script:
+    # Installe Poetry dans cet environnement de job
+    - pip install poetry
+    - cd server
+    # Réactive l'environnement virtuel qui a été téléchargé depuis l'artefact de 'build_server'
+    - source .venv/bin/activate
+    # Exécute les tests unitaires
+    - poetry run pytest --junitxml=test-report.xml
+  needs:
+    - build_server # Cette étape dépend explicitement de la réussite et des artefacts de l'étape 'build_server'
+  artifacts:
+    when: always
+    reports:
+      # Génère un rapport de test au format JUnit
+      junit: server/test-report.xml
+    paths:
+      - server/test-report.xml
+    expire_in: 15 days
+  rules:
+    - if: $CI_PIPELINE_SOURCE == 'merge_request_event'
+      changes:
+        - server/**/*
+        - ci/server.yml
+    - if: $CI_PIPELINE_SOURCE == 'push'
+      changes:
+        - server/**/*
+        - ci/server.yml
+
+
+# -----------------
+# 4. DEPLOY SERVER : Déploiement en production
+# -----------------
+deploy_server:
+  extends: .docker_deploy_template # Hérite du modèle
+  stage: deploy
+  script:
+    # Lit la version depuis le fichier pyproject.toml
+    - export APP_VERSION=v$(grep '^version =' server/pyproject.toml | cut -d '"' -f 2)
+    - export IMAGE_TAG="$DOCKER_HUB_USER/$SERVER_APP_NAME:$APP_VERSION"
+    - echo "Déploiement du server version ${IMAGE_TAG}..."
+
+    # Construit et pousse l'image Docker
+    - docker build -t "$IMAGE_TAG" -f server/Dockerfile server/
+    - docker push "$IMAGE_TAG"
+
+    # Ajoute également le tag 'latest'
+    - docker tag "$IMAGE_TAG" "$DOCKER_HUB_USER/$SERVER_APP_NAME:latest"
+    - docker push "$DOCKER_HUB_USER/$SERVER_APP_NAME:latest"
+  needs:
+    - test_server
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      changes:
+        - server/**/*
+        - ci/server.yml

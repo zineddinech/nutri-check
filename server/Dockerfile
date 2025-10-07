@@ -1,9 +1,8 @@
 # ---- Base image with Python ----
-FROM python:3.12-slim
+FROM python:3.13-slim
 
-# ---- Install Poetry ----
-ENV POETRY_VERSION=1.7.1
-RUN pip install "poetry==$POETRY_VERSION"
+# ---- Install Poetry (by default lastest version) ----
+RUN pip install poetry
 
 # ---- Set working directory ----
 WORKDIR /app

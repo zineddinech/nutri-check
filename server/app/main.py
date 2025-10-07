@@ -1,8 +1,8 @@
 from fastapi import FastAPI, Depends
 from sqlalchemy.orm import Session
-from server.app.database.database import Base, engine, get_db
-from server.app.models.user import User 
-from server.app.api.api import api_router
+from .database.database import Base, engine, get_db
+from .models.user import User 
+from .api.api import api_router
 
 
 app = FastAPI(

@@ -1,9 +1,9 @@
-from fastapi import FastAPI, Depends
+from fastapi import Depends, FastAPI
 from sqlalchemy.orm import Session
-from .database.database import Base, engine, get_db
-from .models.user import User 
-from .api.api import api_router
 
+from .api.api import api_router
+from .database.database import Base, engine, get_db
+from .models.user import User
 
 app = FastAPI(
     title="User Management API",
@@ -33,7 +33,4 @@ def get_stats(db: Session = Depends(get_db)):
     """Statistiques de l'API"""
     total_users = db.query(User).count()
     last_id = db.query(User.id).order_by(User.id.desc()).first()
-    return {
-        "total_users": total_users,
-        "last_id": last_id[0] if last_id else None
-    }
+    return {"total_users": total_users, "last_id": last_id[0] if last_id else None}

@@ -1,5 +1,7 @@
 from datetime import datetime
+
 from pydantic import BaseModel
+
 
 class UserCreate(BaseModel):
     email: str
@@ -7,6 +9,7 @@ class UserCreate(BaseModel):
     password: str
     first_name: str
     last_name: str
+
 
 class UserResponse(BaseModel):
     id: int
@@ -19,4 +22,4 @@ class UserResponse(BaseModel):
     updated_at: datetime
 
     class Config:
-        orm_mode = True  
+        orm_mode = True

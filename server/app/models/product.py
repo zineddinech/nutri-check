@@ -1,5 +1,7 @@
-from sqlalchemy import Column, Integer, String, Float
+from sqlalchemy import Column, Float, Integer, String
+
 from app.database.database import Base
+
 
 class Product(Base):
     __tablename__ = "products"
@@ -16,4 +18,3 @@ class Product(Base):
     proteins_100g = Column(Float)
     salt_100g = Column(Float)
     last_modified_t = Column(Integer, index=True)
-

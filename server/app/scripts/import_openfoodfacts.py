@@ -83,16 +83,16 @@ def import_openfoodfacts(csv_path: str, limit: int | None = None):
 
             if existing:
                 # corriger le "type: ignore" pour mypy eventuellement
-                existing.product_name = row.get("product_name") # type: ignore
-                existing.brands = row.get("brands") # type: ignore
-                existing.categories = row.get("categories") # type: ignore
-                existing.nutriscore_grade = row.get("nutriscore_grade") # type: ignore
+                existing.product_name = row.get("product_name")  # type: ignore
+                existing.brands = row.get("brands")  # type: ignore
+                existing.categories = row.get("categories")  # type: ignore
+                existing.nutriscore_grade = row.get("nutriscore_grade")  # type: ignore
                 existing.energy_100g = _parse_float(row.get("energy_100g"))
                 existing.fat_100g = _parse_float(row.get("fat_100g"))
                 existing.sugars_100g = _parse_float(row.get("sugars_100g"))
                 existing.proteins_100g = _parse_float(row.get("proteins_100g"))
                 existing.salt_100g = _parse_float(row.get("salt_100g"))
-                existing.last_modified_t = modified_t # type: ignore
+                existing.last_modified_t = modified_t  # type: ignore
                 updated += 1
             else:
                 product = Product(

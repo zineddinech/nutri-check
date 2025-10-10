@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Optional
-
-from pydantic import BaseModel, ConfigDict, EmailStr, field_validator
+from bson import ObjectId
+from pydantic import BaseModel, EmailStr, Field, field_validator
 
 
 class UserBase(BaseModel):
@@ -31,8 +31,11 @@ class UserUpdate(BaseModel):
 
 
 class UserResponse(UserBase):
-    id: int
-    is_active: bool
-    created_at: datetime
-    updated_at: datetime
-    model_config = ConfigDict(from_attributes=True)
+    id: Optional[str] = Field(alias="_id", default=None)
+    is_active: bool = True
+    created_at: Optional[datetime] = None   # ✅ accepte un datetime
+    updated_at: Optional[datetime] = None   # ✅ idem
+
+    class Config:
+        populate_by_name = True
+        json_encoders = {ObjectId: str, datetime: lambda v: v.isoformat()}  # ✅ sérialisation propre

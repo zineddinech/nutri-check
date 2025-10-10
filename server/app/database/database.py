@@ -1,17 +1,12 @@
-from sqlalchemy import create_engine
-from sqlalchemy.orm import declarative_base, sessionmaker
+from motor.motor_asyncio import AsyncIOMotorClient
+from pymongo import ASCENDING
+from bson import ObjectId
 
-DATABASE_URL = "sqlite:///./app/database/database.db"
+DATABASE_URL = "mongodb://localhost:27017"
+DATABASE_NAME = "my_database"
 
-engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
-Base = declarative_base()
-
+client = AsyncIOMotorClient(DATABASE_URL)
+db = client[DATABASE_NAME]
 
 def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+    return db

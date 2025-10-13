@@ -7,17 +7,16 @@ Contient :
 - Des données de test communes
 """
 
-import pytest
 import mongomock
-from pymongo import MongoClient
-from fastapi.testclient import TestClient
-
+import pytest
 from app.main import app
-
+from fastapi.testclient import TestClient
+from pymongo import MongoClient
 
 # ============================================================
 #   FIXTURE 1 — Base MongoDB simulée
 # ============================================================
+
 
 @pytest.fixture(scope="function")
 def mock_db():
@@ -35,6 +34,7 @@ def mock_db():
 # ============================================================
 #   FIXTURE 2 — Base Mongo réelle
 # ============================================================
+
 
 @pytest.fixture(scope="session")
 def real_db():
@@ -54,6 +54,7 @@ def real_db():
 #   FIXTURE 3 — Client FastAPI
 # ============================================================
 
+
 @pytest.fixture(scope="module")
 def client():
     """
@@ -66,6 +67,7 @@ def client():
 # ============================================================
 #   FIXTURE 4 — Données de test communes
 # ============================================================
+
 
 @pytest.fixture
 def sample_product():
@@ -82,5 +84,5 @@ def sample_product():
         "fat_100g": 30.0,
         "sugars_100g": 56.0,
         "proteins_100g": 6.0,
-        "salt_100g": 0.1
+        "salt_100g": 0.1,
     }

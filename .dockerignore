@@ -1,0 +1,20 @@
+# Fichiers et dossiers liés à Git
+.git
+.gitignore
+
+# Fichiers et dossiers des IDE
+.idea
+.vscode
+
+# Fichiers et dossiers liés à Python
+pycache/
+*.pyc
+venv/
+.venv/
+
+# Fichiers et dossiers liés à Node.js (pour le client)
+client/node_modules
+
+# Fichiers de configuration et de build Docker
+Dockerfile
+docker-compose.yml

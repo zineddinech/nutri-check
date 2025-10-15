@@ -1,42 +1,38 @@
 from fastapi import FastAPI
-from motor.motor_asyncio import AsyncIOMotorClient
-
 from .api.api import api_router
+from .database.database import client as db_client, db
 
+# --- Application FastAPI ---
 app = FastAPI(
-    title="User Management API",
-    description="API de gestion des utilisateurs avec persistance MongoDB (Motor)",
+    title="Nutri-Check API",
+    description="API pour rechercher des produits alimentaires et gérer les utilisateurs.",
     version="3.0.0",
 )
 
-# Connexion à MongoDB
-MONGO_URL = "mongodb://localhost:27017"
-client = AsyncIOMotorClient(MONGO_URL)
-db = client["nutri_check"]
-
-# Inclusion des routes
-app.include_router(api_router, prefix="/api")
-
+# --- Événements de cycle de vie ---
 
 @app.on_event("startup")
 async def startup_db_client():
     """Établir la connexion à MongoDB au démarrage"""
-    app.mongodb_client = AsyncIOMotorClient(MONGO_URL)
-    app.mongodb = app.mongodb_client["nutri_check"]
-    print("✅ Connexion MongoDB établie")
+    print("✅ FastAPI application startup complete.")
 
 
 @app.on_event("shutdown")
 async def shutdown_db_client():
     """Fermer la connexion à MongoDB à l’arrêt"""
-    app.mongodb_client.close()
+    db_client.close()
     print("🛑 Connexion MongoDB fermée")
 
+
+# --- Routes ---
+
+# Inclusion des routes de l'API définies dans api/api.py
+app.include_router(api_router, prefix="/api")
 
 @app.get("/")
 async def root():
     return {
-        "message": "User Management API - MongoDB Storage",
+        "message": "Welcome to the Nutri-Check API",
         "version": "3.0.0",
         "documentation": "/docs",
         "note": "Les données sont stockées dans une base MongoDB via Motor",

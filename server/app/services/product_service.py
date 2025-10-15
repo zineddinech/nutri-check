@@ -2,6 +2,7 @@ from typing import List
 from pymongo import ASCENDING, DESCENDING
 from ..database.database import get_db
 
+
 class ProductService:
     @staticmethod
     async def search_products(query: str, page: int, page_size: int) -> List[dict]:
@@ -17,7 +18,6 @@ class ProductService:
 
         products = await products_cursor.to_list(length=page_size)
         return products
-
 
     @staticmethod
     async def get_products_sorted(sort_by: str, page: int, page_size: int) -> List[dict]:
@@ -46,7 +46,7 @@ class ProductService:
             else:
                 # Aucune direction valide trouvée à la fin,
                 # donc la chaîne entière est le nom du champ
-                order = ASCENDING # Par défaut en ascendant
+                order = ASCENDING  # Par défaut en ascendant
                 field = sort_by
 
         except Exception:

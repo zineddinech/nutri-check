@@ -65,7 +65,7 @@ class UserService:
             "username": user_data.username,
             "first_name": user_data.first_name,
             "last_name": user_data.last_name,
-            "hashed_password": hashed_pw,
+            "hashed_password": hash(user_data.password),
             "is_active": True,
             "created_at": datetime.utcnow().isoformat(),
             "updated_at": None,

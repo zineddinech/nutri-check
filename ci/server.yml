@@ -43,6 +43,7 @@ build_server:
     # Configure Poetry pour créer l'environnement virtuel dans le dossier du projet
     - poetry config virtualenvs.in-project true
     # Installe toutes les dépendances du projet, y compris les dépendances de développement
+    - cd server
     - poetry install --no-root --directory server
   artifacts:
     paths:
@@ -69,8 +70,8 @@ test_server:
     # Installe Poetry dans cet environnement de job
     - pip install poetry
     - cd server
-    # Réactive l'environnement virtuel qui a été téléchargé depuis l'artefact de 'build_server'
-    - source .venv/bin/activate
+    # Définir PYTHONPATH avant d'exécuter pytest pour l'import 'app'
+    - export PYTHONPATH="$PWD"
     # Exécute les tests unitaires
     - poetry run pytest --junitxml=test-report.xml
   needs:

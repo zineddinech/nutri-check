@@ -15,9 +15,9 @@ lint_server:
     # Installe Poetry pour exécuter les outils de lint
     - pip install poetry
     - poetry config virtualenvs.in-project true
-    - poetry install --no-root --directory server
-    # Exécute les vérifications de formatage et de typage
     - cd server
+    - poetry install
+    # Exécute les vérifications de formatage et de typage
     - poetry run black --check .
     - poetry run isort --check-only .
     - poetry run mypy app
@@ -44,7 +44,7 @@ build_server:
     - poetry config virtualenvs.in-project true
     # Installe toutes les dépendances du projet, y compris les dépendances de développement
     - cd server
-    - poetry install --no-root --directory server
+    - poetry install
   artifacts:
     paths:
       # Sauvegarde le dossier de l'environnement virtuel (.venv) en tant qu'artefact

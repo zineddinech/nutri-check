@@ -1,5 +1,4 @@
 import "./../Screens_CSS/Home.css";
-import "./../Screens_CSS/Background.css";
 
 function Home() {
   return (

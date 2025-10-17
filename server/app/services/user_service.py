@@ -3,6 +3,13 @@ from typing import List, Optional
 from passlib.context import CryptContext
 from bson import ObjectId
 
+import jwt
+from datetime import datetime, timedelta
+from typing import Optional
+
+from ..core.config import JWT_SECRET_KEY, JWT_ALGORITHM, ACCESS_TOKEN_EXPIRE_MINUTES
+
+
 from ..database.database import get_db
 from ..schemas.user import UserCreate, UserUpdate, UserResponse
 
@@ -10,16 +17,43 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
 class UserService:
+
+    @staticmethod
+    def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
+        to_encode = data.copy()
+        if expires_delta:
+            expire = datetime.utcnow() + expires_delta
+        else:
+            expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        to_encode.update({"exp": expire})
+        encoded_jwt = jwt.encode(
+            to_encode, JWT_SECRET_KEY, algorithm=JWT_ALGORITHM)
+        return encoded_jwt
+
+    @staticmethod
+    def decode_access_token(token: str) -> Optional[dict]:
+        try:
+            payload = jwt.decode(token, JWT_SECRET_KEY,
+                                 algorithms=[JWT_ALGORITHM])
+            return payload
+        except jwt.ExpiredSignatureError:
+            return None
+        except jwt.InvalidTokenError:
+            return None
+
     @staticmethod
     def hash_password(password: str) -> str:
         if not password:
             raise ValueError("Password cannot be empty")
-        password = password.encode("utf-8")[:72].decode("utf-8", errors="ignore")
+        password = password.encode(
+            "utf-8")[:72].decode("utf-8", errors="ignore")
         return pwd_context.hash(password)
 
     @staticmethod
     def verify_password(plain_password: str, hashed_password: str) -> bool:
-        return pwd_context.verify(plain_password, hashed_password)
+        truncated = plain_password.encode(
+            "utf-8")[:72].decode("utf-8", errors="ignore")
+        return pwd_context.verify(truncated, hashed_password)
 
     @staticmethod
     async def create_user(user_data: UserCreate) -> UserResponse:
@@ -31,7 +65,7 @@ class UserService:
             "username": user_data.username,
             "first_name": user_data.first_name,
             "last_name": user_data.last_name,
-            "hashed_password": hashed_pw,
+            "hashed_password": hash(user_data.password),
             "is_active": True,
             "created_at": datetime.utcnow().isoformat(),
             "updated_at": None,
@@ -82,7 +116,8 @@ class UserService:
     @staticmethod
     async def update_user(user_id: str, user_data: UserUpdate) -> Optional[UserResponse]:
         db = get_db()
-        update_data = {k: v for k, v in user_data.dict().items() if v is not None}
+        update_data = {k: v for k, v in user_data.dict().items()
+                       if v is not None}
         update_data["updated_at"] = datetime.utcnow().isoformat()
 
         await db["users"].update_one(
@@ -102,8 +137,9 @@ class UserService:
         return result.deleted_count == 1
 
     @staticmethod
-    async def authenticate_user(email: str, password: str) -> Optional[UserResponse]:
+    async def authenticate_user(email: str, password: str) -> str | None:
         user = await UserService.get_user_by_email(email)
         if not user or not UserService.verify_password(password, user.hashed_password):
             return None
-        return user
+        access_token = UserService.create_access_token(data={"id": user.id})
+        return access_token

@@ -1,3 +1,4 @@
+from pydantic import BaseModel
 from datetime import datetime
 from typing import Optional
 from bson import ObjectId
@@ -18,7 +19,8 @@ class UserCreate(UserBase):
     @classmethod
     def validate_password(cls, v):
         if len(v) < 8:
-            raise ValueError("Le mot de passe doit contenir au moins 8 caractères")
+            raise ValueError(
+                "Le mot de passe doit contenir au moins 8 caractères")
         return v
 
 
@@ -38,4 +40,10 @@ class UserResponse(UserBase):
 
     class Config:
         populate_by_name = True
-        json_encoders = {ObjectId: str, datetime: lambda v: v.isoformat()}  # ✅ sérialisation propre
+        # ✅ sérialisation propre
+        json_encoders = {ObjectId: str, datetime: lambda v: v.isoformat()}
+
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str

@@ -17,7 +17,10 @@ dependencies = [
     "pytest-asyncio (>=1.2.0,<2.0.0)",
     "httpx (>=0.28.1,<0.29.0)",
     "bcrypt (>=5.0.0,<6.0.0)",
-    "motor (>=3.7.1,<4.0.0)"
+    "motor (>=3.7.1,<4.0.0)",
+    "python-dotenv (>=1.0.0,<2.0.0)",     # pour lire le .env
+    "PyJWT (>=2.7.0,<3.0.0)",
+    "python-multipart (>=0.0.6,<1.0.0)"
 ]
 
 [tool.poetry]

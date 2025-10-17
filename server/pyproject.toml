@@ -1,10 +1,8 @@
-[project]
+[tool.poetry]
 name = "server"
 version = "0.1.0"
 description = ""
-authors = [
-    {name = "Zineddine CHIKHAOUI",email = "zinedine@datategy.net"}
-]
+authors = ["Zineddine CHIKHAOUI <zinedine@datategy.net>"]
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
@@ -26,8 +24,20 @@ dependencies = [
 [tool.poetry]
 packages = [{include = "app"}]
 
+[tool.poetry.dependencies]
+python = ">=3.13"
+fastapi = ">=0.117.1,<0.118.0"
+uvicorn =  ">=0.37.0,<0.38.0"
+sqlalchemy = ">=2.0.43,<3.0.0"
+pydantic = {extras = ["email"], version = ">=2.11.9,<3.0.0"}
+passlib = ">=1.7.4,<2.0.0"
+httpx = ">=0.28.1,<0.29.0"
+bcrypt = ">=3.0.0,<4.0.0"
+motor = ">=3.7.1,<4.0.0"
 
 [tool.poetry.group.dev.dependencies]
+pytest = ">=8.4.2,<9.0.0"
+pytest-asyncio = ">=1.2.0,<2.0.0"
 black = "^25.9.0"
 isort = "^6.0.1"
 mypy = "^1.18.2"

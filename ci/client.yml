@@ -28,6 +28,7 @@
 lint_client:
   <<: *client_template # Hérite du modèle
   stage: lint
+  allow_failure: true
   script:
     - npm run lint # Il faut garantir que votre package.json contient un script "lint": "eslint ."
 

@@ -72,7 +72,7 @@ def client():
 @pytest.fixture
 def sample_product():
     """
-    Exemple de produit réutilisable dans plusieurs tests.
+    Exemple de produit simulé.
     """
     return {
         "code": "123456789",
@@ -86,3 +86,10 @@ def sample_product():
         "proteins_100g": 6.0,
         "salt_100g": 0.1,
     }
+
+@pytest.fixture
+def sample_allergens():
+    """
+    Exemple de liste d'allergènes simulée.
+    """
+    return ["Crustaceans", "Peanut", "Matsutake", "Milk", "Eggs"]

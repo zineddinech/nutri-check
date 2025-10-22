@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from .api.api import api_router
 from .database.database import client as db_client, db
 
@@ -7,6 +8,20 @@ app = FastAPI(
     title="Nutri-Check API",
     description="API pour rechercher des produits alimentaires et gérer les utilisateurs.",
     version="3.0.0",
+)
+
+# Autoriser CORS pour le dev (ajoute ou adapte les origines si besoin)
+origins = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,    # pour dev tu peux mettre ["*"] mais mieux restreindre
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # --- Événements de cycle de vie ---

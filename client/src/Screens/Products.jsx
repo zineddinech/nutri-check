@@ -221,58 +221,57 @@ function Products() {
   return (
     <div className="background">
       <div className="products-container">
+        <div className="products-toolbar">
+          <div className="toolbar-left">
+            <label className="filter-label">
+              <input
+                type="checkbox"
+                checked={filter}
+                onChange={() => setFilter((s) => !s)}
+                className="filter-checkbox"
+              />
+              Trier les produits selon mes restrictions
+            </label>
+          </div>
+          {/* Barre de recherche */}
+          <div className="search-bar">
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              onKeyPress={handleKeyPress}
+              placeholder="Rechercher un produit..."
+              className="search-input"
+            />
+            <button onClick={handleSearch} className="search-button">
+              Rechercher
+            </button>
+            {activeSearch && (
+              <button onClick={handleClearSearch} className="clear-button">
+                ✕ Effacer
+              </button>
+            )}
+          </div>
+          <div className="toolbar-right">
+            <select
+              value={sort}
+              onChange={(e) => setSort(e.target.value)}
+              className="sort-select"
+            >
+              <option value="nutriscore_score_asc">
+                Produits avec meilleur Nutri-Score
+              </option>
+              <option value="added">Produits récemment ajoutés</option>
+              <option value="updated">Produits récemment modifiés</option>
+            </select>
+          </div>
+        </div>
         {products.length === 0 ? (
           <div className="empty-state">
             <div className="empty-state__text">Aucun produit disponible</div>
           </div>
         ) : (
           <>
-            <div className="products-toolbar">
-              <div className="toolbar-left">
-                <label className="filter-label">
-                  <input
-                    type="checkbox"
-                    checked={filter}
-                    onChange={() => setFilter((s) => !s)}
-                    className="filter-checkbox"
-                  />
-                  Trier les produits selon mes restrictions
-                </label>
-              </div>
-              {/* Barre de recherche */}
-              <div className="search-bar">
-                <input
-                  type="text"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  onKeyPress={handleKeyPress}
-                  placeholder="Rechercher un produit..."
-                  className="search-input"
-                />
-                <button onClick={handleSearch} className="search-button">
-                  Rechercher
-                </button>
-                {activeSearch && (
-                  <button onClick={handleClearSearch} className="clear-button">
-                    ✕ Effacer
-                  </button>
-                )}
-              </div>
-              <div className="toolbar-right">
-                <select
-                  value={sort}
-                  onChange={(e) => setSort(e.target.value)}
-                  className="sort-select"
-                >
-                  <option value="nutriscore_score_asc">
-                    Produits avec meilleur Nutri-Score
-                  </option>
-                  <option value="added">Produits récemment ajoutés</option>
-                  <option value="updated">Produits récemment modifiés</option>
-                </select>
-              </div>
-            </div>
-
             <div className="products-main">
               {displayedProducts.length === 0 ? (
                 <div className="empty-state">

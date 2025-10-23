@@ -65,7 +65,7 @@ class UserService:
             "username": user_data.username,
             "first_name": user_data.first_name,
             "last_name": user_data.last_name,
-            "hashed_password": hash(user_data.password),
+            "hashed_password": hashed_pw,
             "is_active": True,
             "created_at": datetime.utcnow().isoformat(),
             "updated_at": None,
@@ -138,8 +138,11 @@ class UserService:
 
     @staticmethod
     async def authenticate_user(email: str, password: str) -> str | None:
-        user = await UserService.get_user_by_email(email)
-        if not user or not UserService.verify_password(password, user.hashed_password):
+        db = get_db()
+        user = await db["users"].find_one({"email": email})
+        print(user)
+        if not user or not UserService.verify_password(password, user["hashed_password"]):
             return None
-        access_token = UserService.create_access_token(data={"id": user.id})
+        access_token = UserService.create_access_token(
+            data={"id": str(user["_id"])})
         return access_token

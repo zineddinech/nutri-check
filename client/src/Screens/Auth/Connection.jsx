@@ -8,22 +8,23 @@ function Conn() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
 
-  const formData = new URLSearchParams();
-  formData.append("username", email.trim());
-  formData.append("password", password);
-
   const handleSubmit = async (e) => {
-    e.preventDefault();
+    e.preventDefault();         // empêche le rechargement de page
+    setLoading(true);
+    setError("");
+    setSuccess(false);
+
     try {
       const BASE_URL = "http://127.0.0.1:8000";
       const ENDPOINT = "/api/users/login";
 
       const response = await fetch(`${BASE_URL}${ENDPOINT}`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
-        },
-        body: formData,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: email.trim(),
+          password: password,
+        }),
       });
 
       if (!response.ok) {
@@ -33,10 +34,8 @@ function Conn() {
       }
 
       const data = await response.json();
-
-      if (data) {
-        localStorage.setItem("jwtToken", data.jwt_token);
-      }
+      // TODO: traiter la réponse (stockage token, navigation, etc.)
+      setSuccess(true);
     } catch (err) {
       console.error("Erreur lors de la requête :", err);
       setError("Erreur de connexion au serveur.");
@@ -51,45 +50,45 @@ function Conn() {
         <h1 className="title">Connexion</h1>
 
         <form className="form" onSubmit={handleSubmit}>
-          <label htmlFor="email" className="label">
-            Email :
-          </label>
-          <input
-            id="email"
-            type="email"
-            name="username"
-            className="input"
-            placeholder="exemple@domaine.com"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            autoComplete="email"
-            required
-          />
+          {/* Bloc centré des champs + lien */}
+          <div className="form-stack">
+            <label htmlFor="email" className="label">Email :</label>
+            <input
+              id="email"
+              type="email"
+              className="input"
+              placeholder="exemple@domaine.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              autoComplete="email"
+              required
+            />
 
-          <label htmlFor="password" className="label">
-            Mot de passe :
-          </label>
-          <input
-            id="password"
-            name="password"
-            type="password"
-            className="input"
-            placeholder="••••••••"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            autoComplete="current-password"
-            required
-          />
+            <label htmlFor="password" className="label">Mot de passe :</label>
+            <input
+              id="password"
+              type="password"
+              className="input"
+              placeholder="••••••••"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              autoComplete="current-password"
+              required
+            />
 
-          <div className="actions">
-            <a href="#forgot" className="forgot">
-              Mot de passe oublié ?
-            </a>
+            <div className="actions">
+              <a href="#forgot" className="forgot">Mot de passe oublié ?</a>
+            </div>
           </div>
 
+          {/* Bouton de soumission (plein largeur selon ton CSS existant) */}
           <button type="submit" className="submit" disabled={loading}>
             {loading ? "Connexion..." : "Se connecter"}
           </button>
+
+          {/* Affichage d'état (optionnel) */}
+          {error && <div className="error">{error}</div>}
+          {success && <div className="success">Connexion réussie.</div>}
         </form>
       </div>
     </div>

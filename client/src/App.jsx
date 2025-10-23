@@ -5,6 +5,7 @@ import Connection from "./Screens/Auth/Connection";
 import Products from "./Screens/Products";
 import "./styles/Background.css";
 import ProductDetail from "./Screens/ProductDetail";
+import Register from "./Screens/Auth/Register";
 
 function App() {
   return (
@@ -14,6 +15,7 @@ function App() {
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/login" element={<Connection />} />
+          <Route path="/register" element={<Register />} />
           <Route path="/produits" element={<Products />} />
           <Route path="/produits/:id" element={<ProductDetail />} />
         </Routes>

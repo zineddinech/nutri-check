@@ -16,6 +16,7 @@ function Products() {
   const [searchTerm, setSearchTerm] = useState("");
   const [activeSearch, setActiveSearch] = useState("");
   const abortControllersRef = useRef({});
+  const attemptedImages = useRef(new Set()); // Track des IDs déjà tentés
 
   // Récupérer les produits depuis l'API (pagination côté serveur)
   useEffect(() => {
@@ -40,59 +41,61 @@ function Products() {
   }, [sort, page, activeSearch]);
 
   // Fonction pour charger une image - une seule tentative
-  const loadImage = useCallback(
-    async (id, name) => {
-      if (!id || !name || images[id] || loadingImages[id]) return;
+  const loadImage = useCallback(async (id, name) => {
+    // Vérifier si déjà chargée, en cours de chargement, ou déjà tentée
+    if (attemptedImages.current.has(id)) {
+      return;
+    }
 
-      setLoadingImages((prev) => ({ ...prev, [id]: true }));
+    // Marquer comme tentée immédiatement
+    attemptedImages.current.add(id);
+    setLoadingImages((prev) => ({ ...prev, [id]: true }));
 
-      // Créer un AbortController pour cette requête
-      const controller = new AbortController();
-      abortControllersRef.current[id] = controller;
+    // Créer un AbortController pour cette requête
+    const controller = new AbortController();
+    abortControllersRef.current[id] = controller;
 
-      try {
-        const response = await fetch(
-          `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(
-            name
-          )}&search_simple=1&action=process&json=1&page_size=1`,
-          { signal: controller.signal }
-        );
+    try {
+      const response = await fetch(
+        `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(
+          name
+        )}&search_simple=1&action=process&json=1&page_size=1`,
+        { signal: controller.signal }
+      );
 
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        const data = await response.json();
-
-        // Vérifier si une image a été trouvée
-        const img =
-          data?.products?.[0]?.image_front_url ||
-          data?.products?.[0]?.image_url ||
-          "";
-
-        if (img) {
-          // Image trouvée
-          setImages((prev) => ({ ...prev, [id]: img }));
-        } else {
-          // Pas d'image trouvée - utiliser le placeholder immédiatement
-          console.warn(`No image found for ${name}`);
-          setImages((prev) => ({ ...prev, [id]: "" }));
-        }
-      } catch (error) {
-        if (error.name === "AbortError") {
-          console.warn(`Image loading aborted for ${name}`);
-        } else {
-          console.warn(`Failed to load image for ${name}:`, error.message);
-        }
-        // En cas d'erreur, utiliser le placeholder
-        setImages((prev) => ({ ...prev, [id]: "" }));
-      } finally {
-        setLoadingImages((prev) => ({ ...prev, [id]: false }));
-        delete abortControllersRef.current[id];
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
-    },
-    [images, loadingImages]
-  );
+
+      const data = await response.json();
+
+      // Vérifier si une image a été trouvée
+      const img =
+        data?.products?.[0]?.image_front_url ||
+        data?.products?.[0]?.image_url ||
+        "";
+
+      if (img) {
+        // Image trouvée
+        setImages((prev) => ({ ...prev, [id]: img }));
+      } else {
+        // Pas d'image trouvée - utiliser le placeholder immédiatement
+        console.warn(`No image found for ${name}`);
+        setImages((prev) => ({ ...prev, [id]: "" }));
+      }
+    } catch (error) {
+      if (error.name === "AbortError") {
+        console.warn(`Image loading aborted for ${name}`);
+      } else {
+        console.warn(`Failed to load image for ${name}:`, error.message);
+      }
+      // En cas d'erreur, utiliser le placeholder
+      setImages((prev) => ({ ...prev, [id]: "" }));
+    } finally {
+      setLoadingImages((prev) => ({ ...prev, [id]: false }));
+      delete abortControllersRef.current[id];
+    }
+  }, []); // Pas de dépendances pour éviter les rechargements
 
   // Charger les images par batch avec délai pour éviter la surcharge
   useEffect(() => {
@@ -102,7 +105,7 @@ function Products() {
         const id = product._id ?? product.id;
         const name = product.product_name ?? product.name ?? "";
 
-        if (id && name && !images[id] && !loadingImages[id]) {
+        if (id && name && !attemptedImages.current.has(id)) {
           await loadImage(id, name);
           // Petit délai entre chaque requête pour éviter le rate limiting
           if (i < products.length - 1) {
@@ -115,7 +118,7 @@ function Products() {
     if (products.length > 0) {
       loadImagesSequentially();
     }
-  }, [products, loadImage, images, loadingImages]);
+  }, [products, loadImage]);
 
   // Réinitialiser les images et annuler les requêtes en cours quand on change de page
   useEffect(() => {
@@ -125,8 +128,10 @@ function Products() {
     });
     abortControllersRef.current = {};
 
+    // Réinitialiser tout
     setImages({});
     setLoadingImages({});
+    attemptedImages.current.clear(); // Réinitialiser les tentatives
   }, [page, activeSearch]);
 
   // Cleanup: annuler toutes les requêtes lors du démontage du composant

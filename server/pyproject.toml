@@ -4,7 +4,6 @@ version = "0.1.0"
 description = ""
 authors = ["Zineddine CHIKHAOUI <zinedine@datategy.net>"]
 readme = "README.md"
-python = ">=3.13"
 packages = [{include = "app"}]
 
 [tool.poetry.dependencies]

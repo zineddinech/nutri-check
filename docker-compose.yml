@@ -1,0 +1,77 @@
+# Définition de la version de la syntaxe Docker Compose.
+version: '3.8'
+
+# Définition des services (conteneurs) de notre application.
+services:
+  # Service pour la base de données MongoDB.
+  mongo:
+    image: mongo:latest
+    container_name: nutri_mongo
+    ports:
+      # Expose le port de MongoDB sur la machine hôte pour un débogage facile.
+      - "27017:27017"
+    volumes:
+      # - Volume 1: Stocke les données de MongoDB de manière persistante sur la machine hôte.
+      #   Même si le conteneur est supprimé, les données ne seront pas perdues.
+      - mongo-data:/data/db
+      # - Volume 2: Monte notre script d'initialisation dans un répertoire spécial du conteneur.
+      #   L'image officielle de MongoDB exécute automatiquement les scripts trouvés dans /docker-entrypoint-initdb.d/ au premier démarrage.
+      - ./mongo-init:/docker-entrypoint-initdb.d
+    networks:
+      - nutri-network
+
+  # Service pour le backend FastAPI (votre dossier 'server').
+  server:
+    # Construit l'image Docker à partir du Dockerfile situé dans le dossier './server'.
+    build: ./server
+    container_name: nutri_server
+    ports:
+      # Expose le port de l'API FastAPI.
+      - "8000:8000"
+    volumes:
+      # Monte le code source du serveur dans le conteneur.
+      # Cela permet le "hot-reloading" : les changements dans le code sont immédiatement pris en compte sans redémarrer le conteneur.
+      - ./server:/app
+    environment:
+      # L'URI de connexion pour que l'API puisse trouver la base de données.
+      # 'mongo' est le nom du service de base de données défini ci-dessus.
+      - MONGO_URI=mongodb://mongo:27017
+      - MONGO_DB_NAME=nutridb
+    # S'assure que le service 'mongo' est démarré et prêt avant de démarrer le service 'server'.
+    depends_on:
+      - mongo
+    networks:
+      - nutri-network
+
+#  # ------------------------------------------------------------------
+#  # -- Le service 'client' a été commenté pour se concentrer sur le backend --
+#  # ------------------------------------------------------------------
+#  # Service pour le frontend (votre dossier 'client').
+#  # Cet exemple suppose une application React/Vue/Svelte avec Vite.
+#  client:
+#    # Construit l'image Docker à partir du Dockerfile situé dans le dossier './client'.
+#    # NOTE: Vous devrez créer un Dockerfile pour le client si ce n'est pas déjà fait.
+#    build: ./client
+#    container_name: nutri_client
+#    ports:
+#      # Expose le port du serveur de développement Vite.
+#      - "5173:5173"
+#    volumes:
+#      # Monte le code source du client pour le hot-reloading.
+#      # L'astuce '/app/node_modules' empêche le dossier node_modules local de masquer celui du conteneur.
+#      - ./client:/app
+#      - /app/node_modules
+#    # S'assure que le backend est démarré avant le frontend.
+#    depends_on:
+#      - server
+#    networks:
+#      - nutri-network
+
+# Définit le volume nommé pour la persistance des données de MongoDB.
+volumes:
+  mongo-data:
+
+# Définit un réseau commun pour que les conteneurs puissent communiquer entre eux par leur nom de service.
+networks:
+  nutri-network:
+    driver: bridge

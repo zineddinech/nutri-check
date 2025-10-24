@@ -1,0 +1,101 @@
+# Définit un modèle de job global pour le client afin d'éviter la répétition
+.client_template: &client_template
+  image: node:20-slim
+  before_script:
+    - cd client
+    - npm install
+  cache: # Met en cache le répertoire node_modules pour accélérer considérablement les jobs suivants
+    key:
+      files:
+        - client/package-lock.json
+    paths:
+      - client/node_modules/
+    policy: pull-push # Récupère et pousse le cache
+  rules:
+    - if: $CI_PIPELINE_SOURCE == 'merge_request_event'
+      changes:
+        - client/**/*
+        - ci/client.yml
+    - if: $CI_PIPELINE_SOURCE == 'push'
+      changes:
+        - client/**/*
+        - ci/client.yml
+
+
+# -----------------
+# 1. LINT CLIENT
+# -----------------
+lint_client:
+  <<: *client_template # Hérite du modèle
+  stage: lint
+  allow_failure: true
+  script:
+    - npm run lint # Il faut garantir que votre package.json contient un script "lint": "eslint ."
+
+
+# -----------------
+# 2. BUILD CLIENT
+# -----------------
+build_client:
+  <<: *client_template # Hérite du modèle
+  stage: build
+  script:
+    - echo "Construction du client pour la production..."
+    - npm run build # Exécute la commande de build pour la production
+  artifacts:
+    paths:
+      - client/dist/ # Le répertoire de sortie de Vite est dist/, et non build/
+    expire_in: 1 hour
+
+
+# -----------------
+# 3.1. TEST CLIENT
+# -----------------
+test_client:
+  <<: *client_template # Hérite du modèle
+  stage: test
+  script:
+    - npm run test -- --run # Il faut garantir que votre package.json contient un script "test": "vitest"
+
+
+# -----------------
+# 3.2. (Optionnel) SMOKE TEST CLIENT
+# -----------------
+# Ce job peut vérifier que les artéfacts de build fonctionnent correctement
+preview_client:
+  <<: *client_template
+  stage: test
+  needs:
+    - build_client
+  script:
+    # Installe curl
+    - apt-get update -y && apt-get install -y curl
+    # Démarre le serveur de prévisualisation en arrière-plan
+    - npm run preview &
+    # Attend quelques secondes que le serveur démarre
+    - sleep 5
+    # Utilise curl pour vérifier si le serveur renvoie un code de statut de succès
+    - curl http://localhost:4173
+
+
+# -----------------
+# 4. DEPLOY CLIENT : Déploiement en production
+# -----------------
+deploy_client:
+  extends: .docker_deploy_template # Hérite du modèle
+  stage: deploy
+  script:
+    # Lit la version depuis le fichier package.json
+    - export APP_VERSION=v$(awk -F'"' '/"version":/ {print $4}' client/package.json)
+    - export IMAGE_TAG="$DOCKER_HUB_USER/$CLIENT_APP_NAME:$APP_VERSION"
+
+    # Construit et pousse l'image Docker
+    - echo "Déploiement du client version ${IMAGE_TAG}..."
+  needs:
+    - test_client
+    - preview_client
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      changes:
+        - client/**/*
+        - ci/client.yml

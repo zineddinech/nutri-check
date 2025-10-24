@@ -1,0 +1,28 @@
+# Python artifacts
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual environments
+.venv/
+env/
+venv/
+
+# Poetry artifacts
+poetry.lock
+*.egg-info/
+dist/
+
+# VS Code and dev containers
+.vscode/
+.devcontainer/
+
+# Git & local config
+.git/
+.gitignore
+*.log
+
+# OS junk
+.DS_Store
+Thumbs.db

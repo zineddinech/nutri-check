@@ -1,0 +1,82 @@
+/* Conteneur plein écran, sans fond : juste le centrage */
+.center-screen {
+  min-height: 100svh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+
+/* Carte du formulaire */
+.form-card {
+  width: 100%;
+  max-width: 360px;
+  color: #fff;
+  border-radius: 14px;
+  padding: 22px 20px 26px;
+}
+
+/* Titre + form */
+.title {
+  margin: 0 0 16px;
+  text-align: center;
+  font-size: 22px;
+  font-weight: 700;
+}
+
+.form {
+  display: grid;
+  gap: 10px;
+}
+
+.label {
+  font-size: 14px;
+  text-align: left;
+  color: #ffff;
+}
+
+/* Inputs */
+.input {
+  height: 40px;
+  padding: 0 12px;
+  border-radius: 10px;
+  border: 1px solid #dcdcdc;
+  outline: none;
+  transition: border-color .2s, box-shadow .2s;
+}
+
+.input:focus {
+  border-color: #7ecf7a;
+  box-shadow: 0 0 0 3px rgba(126, 207, 122, 0.25);
+}
+
+/* Lien & bouton */
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 2px;
+}
+
+.forgot {
+  font-size: 13px;
+  color: #3778ff;
+  text-decoration: underline;
+}
+
+.forgot:hover { text-decoration: underline; }
+
+.submit {
+  margin-top: 8px;
+  height: 44px;
+  width: 100%;
+  border: none;
+  border-radius: 12px;
+  background: #bdf8b4;
+  color: #28742a;
+  font-weight: 700;
+  font-size: 16px;
+  cursor: pointer;
+  transition: transform .06s, filter .2s;
+}
+
+.submit:hover { filter: brightness(0.98); }
+.submit:active { transform: translateY(1px); }

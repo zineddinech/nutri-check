@@ -1,0 +1,25 @@
+from fastapi import APIRouter, Query
+from typing import List, Optional
+from ...services.profil_service import ProfilService
+
+router = APIRouter()
+
+# ----------------------- Allergens endpoint -----------------------
+@router.get("/getAllergiesByName", response_model=List[str])
+async def get_allergies_by_name(query: Optional[str] = Query(None, description="Partial allergen name to search for")):
+    """
+    Retourne la liste des allergènes filtrés par query (partial match).
+    Si query est vide, retourne tous les allergènes.
+    """
+    results = await ProfilService.get_allergies_by_name(query)
+    return results
+
+# ----------------------- Diet restriction endpoint -----------------------
+@router.get("/getDietRestrictionsByName", response_model=List[dict])
+async def get_diet_restrictions(query: Optional[str] = Query(None, description="Partial name of the diet restriction")):
+    """
+    Retourne la liste des restrictions diététiques filtrées par query (partial match).
+    Chaque restriction contient: name, limit_type, unit
+    """
+    results = await ProfilService.get_diet_restrictions_by_name(query)
+    return results

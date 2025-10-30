@@ -1,7 +1,6 @@
 from typing import Optional, List, Any
 from pydantic import BaseModel, Field, ConfigDict
 
-
 # data-fields : https://static.openfoodfacts.org/data/data-fields.txt
 class ProductResponse(BaseModel):
     id: str = Field(alias="_id")

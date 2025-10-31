@@ -20,7 +20,7 @@ tests/
 
 Ce fichier contient les **fixtures** partagées entre tous les tests :
 
-- **mock_db** : Base MongoDB simulée avec `mongomock` pour isoler les tests unitaires.
+- **mock_db** : Base MongoDB simulée avec un wrapper awaitable autour de `mongomock`, pour que toutes les opérations (`find_one`, `insert_one`, `update_one`, etc.) puissent être utilisées avec await dans les tests unitaires.
 - **real_db** : Connexion à une vraie instance MongoDB pour les tests d’intégration.
 - **client** : Client HTTP FastAPI pour exécuter les tests E2E.
 - **sample_product** : Données de test réutilisables (ex : un produit fictif).
@@ -70,9 +70,9 @@ poetry run pytest -v --tb=short
 
 ## 3. Bonnes pratiques
 
-- Les tests unitaires utilisent mock_db pour isoler les opérations sur la base.
+- Les tests unitaires utilisent `mock_db` pour isoler les opérations sur la base. Tous les appels MongoDB doivent être `await`
 
-- Les tests d’intégration peuvent utiliser real_db pour vérifier la communication avec une vraie instance MongoDB.
+- Les tests d’intégration peuvent utiliser `real_db` pour vérifier la communication avec une vraie instance MongoDB.
 
 - Les tests E2E utilisent client pour tester les endpoints FastAPI comme un utilisateur réel.
 

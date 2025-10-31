@@ -1,16 +1,19 @@
 from typing import List
-from fastapi import APIRouter, HTTPException, Query, status, Depends
+
+from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
 from fastapi.security import OAuth2PasswordRequestForm
-from ...schemas.user import UserCreate, UserResponse, UserUpdate
-from ...services.user_service import UserService
 
 from app.schemas.user import Token
 
+from ...schemas.user import UserCreate, UserResponse, UserUpdate
+from ...services.user_service import UserService
 
 router = APIRouter()
 
 
-@router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED
+)
 async def create_user(user_data: UserCreate):
     """
     Créer un nouvel utilisateur (MongoDB)
@@ -19,8 +22,7 @@ async def create_user(user_data: UserCreate):
         user = await UserService.create_user(user_data)
         return user
     except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
 @router.post("/login", response_model=Token)
@@ -102,6 +104,32 @@ async def get_user_by_username(username: str):
     Récupérer un utilisateur par son nom d'utilisateur
     """
     user = await UserService.get_user_by_username(username)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Utilisateur non trouvé"
+        )
+    return user
+
+
+@router.post("/{user_id}/allergies", response_model=UserResponse)
+async def add_allergies_to_user(user_id: str, allergies: List[str] = Body(...)):
+    """
+    Ajoute une ou plusieurs allergies à un utilisateur
+    """
+    user = await UserService.add_allergies(user_id, allergies)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Utilisateur non trouvé"
+        )
+    return user
+
+
+@router.delete("/{user_id}/allergies", response_model=UserResponse)
+async def remove_allergies_from_user(user_id: str, allergies: List[str] = Body(...)):
+    """
+    Supprime une ou plusieurs allergies d’un utilisateur
+    """
+    user = await UserService.remove_allergies(user_id, allergies)
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Utilisateur non trouvé"

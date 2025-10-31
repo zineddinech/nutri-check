@@ -1,7 +1,9 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+
 from .api.api import api_router
-from .database.database import client as db_client, db
+from .database.database import client as db_client
+from .database.database import db
 
 # --- Application FastAPI ---
 app = FastAPI(
@@ -18,13 +20,14 @@ origins = [
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,    # pour dev tu peux mettre ["*"] mais mieux restreindre
+    allow_origins=origins,  # pour dev tu peux mettre ["*"] mais mieux restreindre
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 # --- Événements de cycle de vie ---
+
 
 @app.on_event("startup")
 async def startup_db_client():
@@ -43,6 +46,7 @@ async def shutdown_db_client():
 
 # Inclusion des routes de l'API définies dans api/api.py
 app.include_router(api_router, prefix="/api")
+
 
 @app.get("/")
 async def root():

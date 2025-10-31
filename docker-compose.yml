@@ -1,6 +1,3 @@
-# Définition de la version de la syntaxe Docker Compose.
-version: '3.8'
-
 # Définition des services (conteneurs) de notre application.
 services:
   # Service pour la base de données MongoDB.
@@ -43,29 +40,24 @@ services:
     networks:
       - nutri-network
 
-#  # ------------------------------------------------------------------
-#  # -- Le service 'client' a été commenté pour se concentrer sur le backend --
-#  # ------------------------------------------------------------------
-#  # Service pour le frontend (votre dossier 'client').
-#  # Cet exemple suppose une application React/Vue/Svelte avec Vite.
-#  client:
-#    # Construit l'image Docker à partir du Dockerfile situé dans le dossier './client'.
-#    # NOTE: Vous devrez créer un Dockerfile pour le client si ce n'est pas déjà fait.
-#    build: ./client
-#    container_name: nutri_client
-#    ports:
-#      # Expose le port du serveur de développement Vite.
-#      - "5173:5173"
-#    volumes:
-#      # Monte le code source du client pour le hot-reloading.
-#      # L'astuce '/app/node_modules' empêche le dossier node_modules local de masquer celui du conteneur.
-#      - ./client:/app
-#      - /app/node_modules
-#    # S'assure que le backend est démarré avant le frontend.
-#    depends_on:
-#      - server
-#    networks:
-#      - nutri-network
+  client:
+   # Construit l'image Docker à partir du Dockerfile situé dans le dossier './client'.
+   # NOTE: Vous devrez créer un Dockerfile pour le client si ce n'est pas déjà fait.
+    build: ./client
+    container_name: nutri_client
+    ports:
+      # Expose le port du serveur de développement Vite.
+      - "5173:5173"
+    volumes:
+      # Monte le code source du client pour le hot-reloading.
+      # L'astuce '/app/node_modules' empêche le dossier node_modules local de masquer celui du conteneur.
+      - ./client:/app
+      - /app/node_modules
+   # S'assure que le backend est démarré avant le frontend.
+    depends_on:
+      - server
+    networks:
+      - nutri-network
 
 # Définit le volume nommé pour la persistance des données de MongoDB.
 volumes:

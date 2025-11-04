@@ -1,5 +1,6 @@
-from typing import Optional, List, Any
-from pydantic import BaseModel, Field, ConfigDict
+from typing import Any, List, Optional
+
+from pydantic import BaseModel, ConfigDict, Field
 
 # data-fields : https://static.openfoodfacts.org/data/data-fields.txt
 class ProductResponse(BaseModel):
@@ -11,9 +12,4 @@ class ProductResponse(BaseModel):
     categories_tags: Optional[List[str]] = None
     url: Optional[str] = None
 
-    model_config = ConfigDict(
-        populate_by_name = True,
-        json_encoders = {
-            " ObjectId ": str
-        }
-    )
+    model_config = ConfigDict(populate_by_name=True, json_encoders={" ObjectId ": str})

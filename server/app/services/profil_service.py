@@ -1,5 +1,6 @@
+from typing import Dict, List, Optional
+
 import httpx
-from typing import List, Dict, Optional
 
 
 class ProfilService:
@@ -39,7 +40,7 @@ class ProfilService:
         allergens = await cls._fetch_allergens()
         if not query:
             return allergens
-        
+
         query_lower = query.lower()
         filtered = [a for a in allergens if query_lower in a.lower()]
         return filtered
@@ -74,7 +75,9 @@ class ProfilService:
         return restrictions
 
     @classmethod
-    async def get_diet_restrictions_by_name(cls, query: Optional[str]) -> List[Dict[str, str]]:
+    async def get_diet_restrictions_by_name(
+        cls, query: Optional[str]
+    ) -> List[Dict[str, str]]:
         """
         Filtre la liste des restrictions diététiques par correspondance partielle.
         Si query est vide ou None, retourne toutes les restrictions.

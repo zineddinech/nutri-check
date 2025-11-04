@@ -1,6 +1,8 @@
-from typing import Optional
-from pydantic import BaseModel, Field
+from typing import List, Optional
+
 from bson import ObjectId
+from pydantic import BaseModel, Field
+
 
 class PyObjectId(ObjectId):
     @classmethod
@@ -13,6 +15,7 @@ class PyObjectId(ObjectId):
             raise ValueError("Invalid ObjectId")
         return str(v)
 
+
 class User(BaseModel):
     id: Optional[str] = Field(alias="_id")
     email: str
@@ -21,6 +24,7 @@ class User(BaseModel):
     last_name: Optional[str] = None
     hashed_password: str
     is_active: bool = True
+    allergies: List[str] = []
     created_at: Optional[str] = None
     updated_at: Optional[str] = None
 

@@ -1,4 +1,5 @@
 import os
+
 from motor.motor_asyncio import AsyncIOMotorClient
 
 # Lit l'URI de connexion depuis les variables d'environnement.
@@ -9,6 +10,7 @@ DATABASE_NAME = os.getenv("MONGO_DB_NAME", "nutridb")
 
 client = AsyncIOMotorClient(DATABASE_URL)
 db = client[DATABASE_NAME]
+
 
 def get_db():
     return db

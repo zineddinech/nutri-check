@@ -1,6 +1,6 @@
-from pydantic import BaseModel
 from datetime import datetime
-from typing import Optional
+from typing import List, Optional
+
 from bson import ObjectId
 from pydantic import BaseModel, EmailStr, Field, field_validator
 
@@ -19,8 +19,7 @@ class UserCreate(UserBase):
     @classmethod
     def validate_password(cls, v):
         if len(v) < 8:
-            raise ValueError(
-                "Le mot de passe doit contenir au moins 8 caractères")
+            raise ValueError("Le mot de passe doit contenir au moins 8 caractères")
         return v
 
 
@@ -30,13 +29,15 @@ class UserUpdate(BaseModel):
     first_name: Optional[str] = None
     last_name: Optional[str] = None
     is_active: Optional[bool] = None
+    allergies: Optional[List[str]] = None
 
 
 class UserResponse(UserBase):
     id: Optional[str] = Field(alias="_id", default=None)
     is_active: bool = True
-    created_at: Optional[datetime] = None   # ✅ accepte un datetime
-    updated_at: Optional[datetime] = None   # ✅ idem
+    allergies: List[str] = []
+    created_at: Optional[datetime] = None  # ✅ accepte un datetime
+    updated_at: Optional[datetime] = None  # ✅ idem
 
     class Config:
         populate_by_name = True

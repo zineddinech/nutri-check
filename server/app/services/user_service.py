@@ -25,13 +25,15 @@ class UserService:
         else:
             expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
         to_encode.update({"exp": expire})
-        encoded_jwt = jwt.encode(to_encode, JWT_SECRET_KEY, algorithm=JWT_ALGORITHM)
+        encoded_jwt = jwt.encode(
+            to_encode, JWT_SECRET_KEY, algorithm=JWT_ALGORITHM)
         return encoded_jwt
 
     @staticmethod
     def decode_access_token(token: str) -> Optional[dict]:
         try:
-            payload = jwt.decode(token, JWT_SECRET_KEY, algorithms=[JWT_ALGORITHM])
+            payload = jwt.decode(token, JWT_SECRET_KEY,
+                                 algorithms=[JWT_ALGORITHM])
             return payload
         except jwt.ExpiredSignatureError:
             return None
@@ -42,25 +44,27 @@ class UserService:
     def hash_password(password: str) -> str:
         if not password:
             raise ValueError("Password cannot be empty")
-        password = password.encode("utf-8")[:72].decode("utf-8", errors="ignore")
+        password = password.encode(
+            "utf-8")[:72].decode("utf-8", errors="ignore")
         return pwd_context.hash(password)
 
     @staticmethod
     def verify_password(plain_password: str, hashed_password: str) -> bool:
-        truncated = plain_password.encode("utf-8")[:72].decode("utf-8", errors="ignore")
+        truncated = plain_password.encode(
+            "utf-8")[:72].decode("utf-8", errors="ignore")
         return pwd_context.verify(truncated, hashed_password)
 
     @staticmethod
     async def create_user(user_data: UserCreate) -> UserResponse:
         db = get_db()
         hashed_pw = UserService.hash_password(user_data.password)
-
+        print(hashed_pw)
         user = {
             "email": user_data.email,
             "username": user_data.username,
             "first_name": user_data.first_name,
             "last_name": user_data.last_name,
-            "hashed_password": hash(user_data.password),
+            "hashed_password": hashed_pw,
             "is_active": True,
             "created_at": datetime.now(timezone.utc).isoformat(),
             "updated_at": None,
@@ -113,7 +117,8 @@ class UserService:
         user_id: str, user_data: UserUpdate
     ) -> Optional[UserResponse]:
         db = get_db()
-        update_data = {k: v for k, v in user_data.dict().items() if v is not None}
+        update_data = {k: v for k, v in user_data.dict().items()
+                       if v is not None}
         update_data["updated_at"] = datetime.now(timezone.utc).isoformat()
 
         await db["users"].update_one({"_id": ObjectId(user_id)}, {"$set": update_data})
@@ -134,12 +139,12 @@ class UserService:
     async def authenticate_user(email: str, password: str) -> str | None:
         db = get_db()
         user = await db["users"].find_one({"email": email})
-        print(user)
         if not user or not UserService.verify_password(
             password, user["hashed_password"]
         ):
             return None
-        access_token = UserService.create_access_token(data={"id": str(user["_id"])})
+        access_token = UserService.create_access_token(
+            data={"id": str(user["_id"])})
         return access_token
 
     @staticmethod

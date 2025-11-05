@@ -10,6 +10,7 @@ from ..core.config import (ACCESS_TOKEN_EXPIRE_MINUTES, JWT_ALGORITHM,
 from ..database.database import get_db
 from ..schemas.user import UserCreate, UserResponse, UserUpdate
 
+
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
@@ -58,7 +59,6 @@ class UserService:
     async def create_user(user_data: UserCreate) -> UserResponse:
         db = get_db()
         hashed_pw = UserService.hash_password(user_data.password)
-        print(hashed_pw)
         user = {
             "email": user_data.email,
             "username": user_data.username,
@@ -144,7 +144,7 @@ class UserService:
         ):
             return None
         access_token = UserService.create_access_token(
-            data={"id": str(user["_id"])})
+            data={"email": str(user["email"])})
         return access_token
 
     @staticmethod

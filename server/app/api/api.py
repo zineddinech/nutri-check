@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-from .endpoints import product, profil, user
+from .endpoints import product, profil, user, auth
 
 api_router = APIRouter()
 
@@ -8,5 +8,4 @@ api_router = APIRouter()
 api_router.include_router(user.router, prefix="/users", tags=["users"])
 api_router.include_router(product.router, prefix="/product", tags=["product"])
 api_router.include_router(profil.router, prefix="/profil", tags=["profil"])
-api_router.include_router(product.router, prefix="/products", tags=["products"])
-api_router.include_router(profil.router, prefix="/profil", tags=["profil"])
+api_router.include_router(auth.router, prefix="/auth", tags=["auth"])

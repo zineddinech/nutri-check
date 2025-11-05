@@ -25,7 +25,6 @@ class User(BaseModel):
     hashed_password: str
     is_active: bool = True
     allergies: List[str] = []
-    favorites: List[str] = [] 
     created_at: Optional[str] = None
     updated_at: Optional[str] = None
 

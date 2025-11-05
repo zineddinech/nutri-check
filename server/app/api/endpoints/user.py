@@ -135,34 +135,8 @@ async def remove_allergies_from_user(user_id: str, allergies: List[str] = Body(.
             status_code=status.HTTP_404_NOT_FOUND, detail="Utilisateur non trouvé"
         )
     return user
-@router.post("/{user_id}/favorites/{product_id}", response_model=UserResponse)
-async def add_favorite(user_id: str, product_id: str):
-    """
-    Ajoute un produit aux favoris de l’utilisateur
-    """
-    user = await UserService.add_favorite(user_id, product_id)
-    if not user:
-        raise HTTPException(status_code=404, detail="Utilisateur non trouvé")
-    return user
 
 
-@router.delete("/{user_id}/favorites/{product_id}", response_model=UserResponse)
-async def remove_favorite(user_id: str, product_id: str):
-    """
-    Supprime un produit des favoris de l’utilisateur
-    """
-    user = await UserService.remove_favorite(user_id, product_id)
-    if not user:
-        raise HTTPException(status_code=404, detail="Utilisateur non trouvé")
-    return user
 
 
-@router.get("/{user_id}/favorites")
-async def get_favorites(user_id: str):
-    """
-    Récupère la liste des produits favoris de l’utilisateur
-    """
-    favorites = await UserService.get_favorites(user_id)
-    if favorites is None:
-        raise HTTPException(status_code=404, detail="Utilisateur non trouvé")
-    return favorites
+

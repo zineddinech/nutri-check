@@ -191,41 +191,6 @@ class UserService:
         user["_id"] = str(user["_id"])
         return UserResponse(**user)
     
-    @staticmethod
-    async def add_favorite(user_id: str, product_id: str):
-        db = get_db()
-        result = await db["users"].update_one(
-            {"_id": ObjectId(user_id)},
-            {"$addToSet": {"favorites": product_id}}  # évite les doublons
-        )
-        if result.modified_count == 0:
-            return None
-        user = await db["users"].find_one({"_id": ObjectId(user_id)})
-        user["_id"] = str(user["_id"])
-        return user
+   
 
-    @staticmethod
-    async def remove_favorite(user_id: str, product_id: str):
-        db = get_db()
-        result = await db["users"].update_one(
-            {"_id": ObjectId(user_id)},
-            {"$pull": {"favorites": product_id}}
-        )
-        if result.modified_count == 0:
-            return None
-        user = await db["users"].find_one({"_id": ObjectId(user_id)})
-        user["_id"] = str(user["_id"])
-        return user
-
-    @staticmethod
-    async def get_favorites(user_id: str):
-        db = get_db()
-        user = await db["users"].find_one({"_id": ObjectId(user_id)})
-        if not user:
-            return None
-        favorites_ids = user.get("favorites", [])
-        if not favorites_ids:
-            return []
-        products_cursor = db["products"].find({"_id": {"$in": favorites_ids}})
-        products = await products_cursor.to_list(length=None)
-        return products
+    

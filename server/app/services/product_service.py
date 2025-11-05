@@ -78,3 +78,13 @@ class ProductService:
 
         products = await products_cursor.to_list(length=page_size)
         return products
+
+
+    @staticmethod
+    async def get_product_by_id(product_id: str) -> dict:
+        """
+        Récupère un produit par son ID depuis MongoDB.
+        """
+        db = get_db()
+        product = await db["products"].find_one({"_id": product_id})
+        return product

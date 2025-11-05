@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import "./../Screens_CSS/Products.css";
 import "./../Screens_CSS/Background.css";
 import {
@@ -7,6 +8,7 @@ import {
 } from "../services/productService";
 
 function Products() {
+  const navigate = useNavigate(); // Hook ajouté ici au début du composant
   const [sort, setSort] = useState("nutriscore_score_asc");
   const [filter, setFilter] = useState(false);
   const [images, setImages] = useState({});
@@ -198,6 +200,11 @@ function Products() {
     if (e.key === "Enter") handleSearch();
   };
 
+  /** ----------- Navigation vers détail produit ----------- */
+  const handleProductClick = (productId) => {
+    navigate(`/produits/${productId}`);
+  };
+
   /** ----------- Tri et filtrage ----------- */
   const sortedProducts = [...products].sort((a, b) => {
     const getName = (p) => (p.product_name ?? p.name ?? "").toString();
@@ -300,7 +307,12 @@ function Products() {
                   product.compatibility ?? product.compatibility_score ?? 0;
 
                 return (
-                  <div className="product-card" key={id}>
+                  <div
+                    className="product-card"
+                    key={id}
+                    onClick={() => handleProductClick(id)}
+                    style={{ cursor: "pointer" }}
+                  >
                     <div className="compatibility">
                       Compatible à {compatibility}%
                     </div>

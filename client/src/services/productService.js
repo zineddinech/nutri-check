@@ -25,3 +25,8 @@ export function getProductsSearched(query = "", page = 1, page_size = 100) {
     )}&page=${Number(page)}&page_size=${Number(page_size)}`;
     return fetchJson(url);
 }
+
+export function getProductById(product_id) {
+    const url = `${API_BASE}/api/product/getById/${encodeURIComponent(product_id)}`;
+    return fetchJson(url);
+}

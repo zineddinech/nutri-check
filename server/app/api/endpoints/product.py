@@ -42,3 +42,16 @@ async def get_products_by_index(
         sort_by=sort_by, page=page, page_size=page_size
     )
     return products
+
+
+@router.get("/getById/{product_id}", response_model=ProductResponse)
+async def get_product_by_id(
+    product_id: str,
+):
+    """
+    Ce point de terminaison récupère un produit par son ID.
+    """
+    product = await ProductService.get_product_by_id(product_id)
+    if product:
+        return product
+    return None

@@ -4,6 +4,7 @@ import Home from "./Screens/Home";
 import Connection from "./Screens/Auth/Connection";
 import Products from "./Screens/Products";
 import "./Screens_CSS/Background.css";
+import ProductDetail from "./Screens/ProductDetail";
 
 function App() {
   return (
@@ -14,9 +15,7 @@ function App() {
           <Route path="/" element={<Home />} />
           <Route path="/login" element={<Connection />} />
           <Route path="/produits" element={<Products />} />
-          {/*<Route path="/courses" element={<Courses />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} /> */}
+          <Route path="/produits/:id" element={<ProductDetail />} />
         </Routes>
       </Router>
     </div>

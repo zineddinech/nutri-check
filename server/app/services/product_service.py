@@ -67,9 +67,14 @@ class ProductService:
         # Exécuter la requête
         # Nous utilisons find({}) pour récupérer tous les documents,
         # car ce point de terminaison n'implique pas de recherche par terme.
-        products_cursor = (
-            db["products"].find({}).sort(sort_criteria).skip(skip).limit(page_size)
-        )
+        products_cursor = db["products"].find(
+            {
+                "product_name": {
+                    "$exists": True,
+                    "$nin": [None, ""]
+                }
+            }
+        ).sort(sort_criteria).skip(skip).limit(page_size)
 
         products = await products_cursor.to_list(length=page_size)
         return products

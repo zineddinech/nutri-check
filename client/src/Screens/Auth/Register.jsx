@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import "./../../Screens_CSS/Register.css";
+import "./../../styles/Register.css";
 
 import StepPersonal from "./steps/StepPersonal";
 import StepRestrictions from "./steps/StepRestrictions";

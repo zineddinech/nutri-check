@@ -160,6 +160,25 @@
   gap: 12px;
 }
 
+.favorites-nav-button {
+  padding: 12px 20px;
+  background: linear-gradient(135deg, #ff6b9d 0%, #c44569 100%);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  font-size: 15px;
+  font-weight: 600;
+  box-shadow: 0 4px 12px rgba(255, 107, 157, 0.3);
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.favorites-nav-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(255, 107, 157, 0.4);
+}
+
 .sort-select {
   font-size: 15px;
   padding: 12px 20px;
@@ -192,9 +211,7 @@
 
 /* ==================== ZONE PRINCIPALE ==================== */
 .products-main {
-  max-height: calc(
-    100vh - 200px
-  ); /* ajuste si navbar + toolbar ont une autre hauteur */
+  max-height: calc(100vh - 200px);
   overflow-y: auto;
   width: 100%;
   padding-top: 12px;
@@ -228,12 +245,54 @@
   transition: all 0.2s ease;
   cursor: pointer;
   border: 2px solid transparent;
+  position: relative;
 }
 
 .product-card:hover {
   transform: translateY(-6px);
   box-shadow: 0 8px 28px rgba(102, 126, 234, 0.2);
   border-color: #667eea;
+}
+
+/* ==================== BOUTON FAVORI ==================== */
+.favorite-button {
+  position: absolute;
+  bottom: 10px;
+  right: 10px;
+  z-index: 10;
+  background: white;
+  border: 2px solid #e0e0e0;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.favorite-button:hover {
+  transform: scale(1.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  border-color: #ff6b9d;
+}
+
+.favorite-button.favorite-active {
+  background: linear-gradient(135deg, #ff6b9d 0%, #c44569 100%);
+  border-color: #ff6b9d;
+  animation: heartBeat 0.3s ease;
+}
+
+@keyframes heartBeat {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.2);
+  }
 }
 
 .compatibility {
@@ -459,6 +518,11 @@
     padding: 10px 16px;
   }
   
+  .favorites-nav-button {
+    font-size: 14px;
+    padding: 10px 16px;
+  }
+  
   .sort-select {
     font-size: 14px;
     padding: 10px 16px;
@@ -471,5 +535,11 @@
   .empty-state__text {
     font-size: 1.3rem;
     padding: 24px 28px;
+  }
+  
+  .favorite-button {
+    width: 35px;
+    height: 35px;
+    font-size: 18px;
   }
 }

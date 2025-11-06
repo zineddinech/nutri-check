@@ -6,9 +6,15 @@ import {
   getProductsByIndex,
   getProductsSearched,
 } from "../services/productService";
+import { getConnectedUser } from "../services/authService";
+import {
+  addFavorite,
+  removeFavorite,
+  getUserFavorites,
+} from "../services/favoritesService";
 
 function Products() {
-  const navigate = useNavigate(); // Hook ajouté ici au début du composant
+  const navigate = useNavigate();
   const [sort, setSort] = useState("nutriscore_score_asc");
   const [filter, setFilter] = useState(false);
   const [images, setImages] = useState({});
@@ -18,15 +24,63 @@ function Products() {
   const [activeSearch, setActiveSearch] = useState("");
   const [loading, setLoading] = useState(false);
   const [hasMore, setHasMore] = useState(true);
+  const [favorites, setFavorites] = useState(new Set());
+  const [currentUser, setCurrentUser] = useState(null);
 
   const observerRef = useRef();
   const loadingRef = useRef(null);
   const imageCache = useRef(new Map());
   const preloadedPages = useRef(new Map());
 
-  // Image par défaut
   const DEFAULT_IMAGE =
     "https://via.placeholder.com/150/e0e0e0/757575?text=Produit";
+
+  /** ----------- Charger l'utilisateur et ses favoris ----------- */
+  useEffect(() => {
+    const loadUserAndFavorites = async () => {
+      try {
+        const user = await getConnectedUser();
+        setCurrentUser(user);
+
+        if (user?._id) {
+          const userFavs = await getUserFavorites(user._id);
+          const favSet = new Set(userFavs.map((fav) => fav.product_id));
+          setFavorites(favSet);
+        }
+      } catch (error) {
+        console.error("Erreur chargement utilisateur/favoris:", error);
+      }
+    };
+
+    loadUserAndFavorites();
+  }, []);
+
+  /** ----------- Toggle favori ----------- */
+  const handleToggleFavorite = async (e, productId) => {
+    e.stopPropagation(); // Empêcher navigation vers détail
+
+    if (!currentUser?._id) {
+      alert("Vous devez être connecté pour ajouter des favoris");
+      return;
+    }
+
+    try {
+      if (favorites.has(productId)) {
+        await removeFavorite(currentUser._id, productId);
+        setFavorites((prev) => {
+          const newSet = new Set(prev);
+          newSet.delete(productId);
+          return newSet;
+        });
+      } else {
+        await addFavorite(currentUser._id, productId);
+        setFavorites((prev) => new Set(prev).add(productId));
+      }
+    } catch (error) {
+      console.error("Erreur toggle favori:", error);
+      alert("Erreur lors de la modification du favori");
+    }
+  };
 
   /** ----------- Chargement des images avec cache ----------- */
   const loadImage = useCallback(async (id, name) => {
@@ -91,7 +145,6 @@ function Products() {
       try {
         let data;
 
-        // Utiliser une page préchargée si dispo
         if (fromPreload && preloadedPages.current.has(page)) {
           data = preloadedPages.current.get(page);
           preloadedPages.current.delete(page);
@@ -110,7 +163,6 @@ function Products() {
         if (arr.length === 0) {
           setHasMore(false);
         } else {
-          // Éviter les doublons
           setProducts((prev) => {
             const existingIds = new Set(prev.map((p) => p._id ?? p.id));
             const newProducts = arr.filter((p) => {
@@ -121,7 +173,6 @@ function Products() {
           });
           setPage((prev) => prev + 1);
 
-          // Précharger les 2 pages suivantes
           for (let next = page + 1; next <= page + 2; next++) {
             if (!preloadedPages.current.has(next)) {
               (async () => {
@@ -321,6 +372,7 @@ function Products() {
                 const imageUrl = images[id];
                 const compatibility =
                   product.compatibility ?? product.compatibility_score ?? 0;
+                const isFavorite = favorites.has(id);
 
                 return (
                   <div
@@ -329,6 +381,20 @@ function Products() {
                     onClick={() => handleProductClick(id)}
                     style={{ cursor: "pointer" }}
                   >
+                    <button
+                      className={`favorite-button ${
+                        isFavorite ? "favorite-active" : ""
+                      }`}
+                      onClick={(e) => handleToggleFavorite(e, id)}
+                      aria-label={
+                        isFavorite
+                          ? "Retirer des favoris"
+                          : "Ajouter aux favoris"
+                      }
+                    >
+                      {isFavorite ? "❤️" : "🤍"}
+                    </button>
+
                     <div className="compatibility">
                       Compatible à {compatibility}%
                     </div>

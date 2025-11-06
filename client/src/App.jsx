@@ -3,7 +3,7 @@ import Navbar from "./Components/Navbar";
 import Home from "./Screens/Home";
 import Connection from "./Screens/Auth/Connection";
 import Products from "./Screens/Products";
-import "./Screens_CSS/Background.css";
+import "./styles/Background.css";
 import ProductDetail from "./Screens/ProductDetail";
 
 function App() {

@@ -68,6 +68,7 @@ class UserService:
             "is_active": True,
             "created_at": datetime.now(timezone.utc).isoformat(),
             "updated_at": None,
+            "allergies": [],
         }
 
         result = await db["users"].insert_one(user)

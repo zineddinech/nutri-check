@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import "./../../Screens_CSS/Connection.css";
+import "./../../styles/Connection.css";
 
 function Conn() {
   const [email, setEmail] = useState("");

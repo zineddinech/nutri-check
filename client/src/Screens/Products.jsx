@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import "./../Screens_CSS/Products.css";
-import "./../Screens_CSS/Background.css";
+import "./../styles/Products.css";
+import "./../styles/Background.css";
 import {
   getProductsByIndex,
   getProductsSearched,
@@ -24,6 +24,10 @@ function Products() {
   const imageCache = useRef(new Map());
   const preloadedPages = useRef(new Map());
 
+  // Image par défaut
+  const DEFAULT_IMAGE =
+    "https://via.placeholder.com/150/e0e0e0/757575?text=Produit";
+
   /** ----------- Chargement des images avec cache ----------- */
   const loadImage = useCallback(async (id, name) => {
     if (imageCache.current.has(id)) {
@@ -45,14 +49,13 @@ function Products() {
       const img =
         data?.products?.[0]?.image_front_url ||
         data?.products?.[0]?.image_url ||
-        "https://via.placeholder.com/150";
+        DEFAULT_IMAGE;
 
       imageCache.current.set(id, img);
       setImages((prev) => ({ ...prev, [id]: img }));
     } catch (error) {
-      const placeholder = "https://via.placeholder.com/150";
-      imageCache.current.set(id, placeholder);
-      setImages((prev) => ({ ...prev, [id]: placeholder }));
+      imageCache.current.set(id, DEFAULT_IMAGE);
+      setImages((prev) => ({ ...prev, [id]: DEFAULT_IMAGE }));
     }
   }, []);
 
@@ -249,6 +252,19 @@ function Products() {
               />
               Filtrer par compatibilité
             </label>
+
+            <div className="product-count">
+              {loading && products.length === 0 ? (
+                <span>Chargement...</span>
+              ) : (
+                <>
+                  <strong>{displayedProducts.length}</strong>
+                  {displayedProducts.length > 1 ? " produits" : " produit"}
+                  {filter && ` (compatibles ≥50%)`}
+                  {activeSearch && ` pour "${activeSearch}"`}
+                </>
+              )}
+            </div>
           </div>
 
           <div className="search-bar">

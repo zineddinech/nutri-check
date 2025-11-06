@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import "./../Screens_CSS/ProductDetail.css";
-import "./../Screens_CSS/Background.css";
 import { getProductById } from "../services/productService";
+import "./../styles/ProductDetail.css";
 
 function ProductDetail() {
   const { id } = useParams();
@@ -11,23 +10,20 @@ function ProductDetail() {
   const [image, setImage] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [imageLoaded, setImageLoaded] = useState(false);
 
   useEffect(() => {
     const fetchProductDetail = async () => {
       try {
         setLoading(true);
-
-        const response = await getProductById(id);
-        if (!response.ok) throw new Error("Produit non trouvé");
-
-        const data = await response.json();
+        const data = await getProductById(id);
         setProduct(data);
 
-        // Charger l'image
         if (data.product_name) {
           loadProductImage(data.product_name);
         }
       } catch (err) {
+        console.error("Erreur lors du chargement du produit:", err);
         setError(err.message);
       } finally {
         setLoading(false);
@@ -48,11 +44,13 @@ function ProductDetail() {
         const img =
           data?.products?.[0]?.image_front_url ||
           data?.products?.[0]?.image_url ||
-          "https://via.placeholder.com/400";
+          "https://via.placeholder.com/400/e0e0e0/757575?text=Image+non+disponible";
 
         setImage(img);
       } catch {
-        setImage("https://via.placeholder.com/400");
+        setImage(
+          "https://via.placeholder.com/400/e0e0e0/757575?text=Image+non+disponible"
+        );
       }
     };
 
@@ -95,10 +93,12 @@ function ProductDetail() {
     return (
       <div className="product-detail-container">
         <div className="error-container">
-          <h2 className="error-title">❌ Erreur</h2>
+          <div className="error-icon">❌</div>
+          <h2 className="error-title">Oups!</h2>
           <p className="error-text">{error || "Produit introuvable"}</p>
-          <button className="back-button" onClick={() => navigate(-1)}>
-            ← Retour
+          <button className="back-button-error" onClick={() => navigate(-1)}>
+            <span className="button-icon">←</span>
+            Retour aux produits
           </button>
         </div>
       </div>
@@ -108,62 +108,70 @@ function ProductDetail() {
   return (
     <div className="product-detail-container">
       <button className="back-button-top" onClick={() => navigate(-1)}>
-        ← Retour aux produits
+        <span className="button-icon">←</span>
+        Retour aux produits
       </button>
 
       <div className="product-detail-content">
-        {/* Section Image et Informations principales */}
-        <div className="main-section">
-          <div className="image-section">
-            {!image ? (
-              <div className="image-skeleton"></div>
-            ) : (
-              <img
-                src={image}
-                alt={product.product_name}
-                className="product-detail-image"
-                onError={(e) => {
-                  e.target.src = "https://via.placeholder.com/400";
-                }}
-              />
+        {/* Header avec image et infos principales */}
+        <div className="product-header">
+          <div className="image-wrapper">
+            {!imageLoaded && (
+              <div className="image-skeleton">
+                <div className="skeleton-pulse"></div>
+              </div>
             )}
+            <img
+              src={
+                image ||
+                "https://via.placeholder.com/400/e0e0e0/757575?text=Image+non+disponible"
+              }
+              alt={product.product_name}
+              className={`product-image ${imageLoaded ? "loaded" : ""}`}
+              onLoad={() => setImageLoaded(true)}
+              onError={(e) => {
+                e.target.src =
+                  "https://via.placeholder.com/400/e0e0e0/757575?text=Image+non+disponible";
+                setImageLoaded(true);
+              }}
+            />
           </div>
 
-          <div className="info-section">
-            <h1 className="product-detail-name">
-              {product.product_name || "—"}
-            </h1>
+          <div className="product-info">
+            <h1 className="product-name">{product.product_name || "—"}</h1>
 
             {product.brands && (
-              <div className="info-row">
-                <span className="info-label">Marque:</span>
-                <span className="brand-value">{product.brands}</span>
+              <div className="info-badge brand-badge">
+                <span className="badge-icon">🏷️</span>
+                <span className="badge-text">{product.brands}</span>
               </div>
             )}
 
             {product.code && (
-              <div className="info-row">
-                <span className="info-label">Code-barres:</span>
-                <span className="code-value">{product.code}</span>
+              <div className="info-item">
+                <span className="info-icon">📦</span>
+                <div className="info-content">
+                  <span className="info-label">Code-barres</span>
+                  <span className="info-value code-value">{product.code}</span>
+                </div>
               </div>
             )}
 
-            {product.categories && (
-              <div className="categories-section">
-                <span className="info-label">Catégories:</span>
-                <div className="categories-list">
-                  {product.categories.split(",").map((cat, idx) => (
-                    <span key={idx} className="category-tag">
-                      {cat.trim()}
-                    </span>
-                  ))}
+            {product.last_modified_t && (
+              <div className="info-item">
+                <span className="info-icon">🕒</span>
+                <div className="info-content">
+                  <span className="info-label">Dernière modification</span>
+                  <span className="info-value">
+                    {formatDate(product.last_modified_t)}
+                  </span>
                 </div>
               </div>
             )}
 
             {product.nutriscore_grade && (
-              <div className="info-row">
-                <span className="info-label">Nutri-Score:</span>
+              <div className="nutriscore-container">
+                <span className="nutriscore-label">Nutri-Score</span>
                 <div
                   className="nutriscore-badge"
                   style={{
@@ -177,12 +185,22 @@ function ProductDetail() {
               </div>
             )}
 
-            {product.last_modified_t && (
-              <div className="info-row">
-                <span className="info-label">Dernière modification:</span>
-                <span className="date-value">
-                  {formatDate(product.last_modified_t)}
+            {product.categories && (
+              <div className="categories-container">
+                <span className="categories-label">
+                  <span className="categories-icon">🏷️</span>
+                  Catégories
                 </span>
+                <div className="categories-list">
+                  {product.categories
+                    .split(",")
+                    .slice(0, 5)
+                    .map((cat, idx) => (
+                      <span key={idx} className="category-tag">
+                        {cat.trim()}
+                      </span>
+                    ))}
+                </div>
               </div>
             )}
           </div>
@@ -190,9 +208,13 @@ function ProductDetail() {
 
         {/* Section Valeurs Nutritionnelles */}
         <div className="nutrition-section">
-          <h2 className="section-title">
-            📊 Valeurs nutritionnelles (pour 100g)
-          </h2>
+          <div className="section-header">
+            <h2 className="section-title">
+              Valeurs nutritionnelles
+              <span className="subtitle">(pour 100g)</span>
+            </h2>
+          </div>
+
           <div className="nutrition-grid">
             <NutritionCard
               icon="⚡"
@@ -200,6 +222,7 @@ function ProductDetail() {
               value={product.energy_100g}
               unit="kJ"
               color="#ff6b6b"
+              gradient="linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%)"
             />
             <NutritionCard
               icon="🧈"
@@ -207,6 +230,7 @@ function ProductDetail() {
               value={product.fat_100g}
               unit="g"
               color="#ffd93d"
+              gradient="linear-gradient(135deg, #ffd93d 0%, #fcbf49 100%)"
             />
             <NutritionCard
               icon="🍬"
@@ -214,6 +238,7 @@ function ProductDetail() {
               value={product.sugars_100g}
               unit="g"
               color="#6bcf7f"
+              gradient="linear-gradient(135deg, #6bcf7f 0%, #4ecdc4 100%)"
             />
             <NutritionCard
               icon="💪"
@@ -221,6 +246,7 @@ function ProductDetail() {
               value={product.proteins_100g}
               unit="g"
               color="#4d96ff"
+              gradient="linear-gradient(135deg, #4d96ff 0%, #6c63ff 100%)"
             />
             <NutritionCard
               icon="🧂"
@@ -228,6 +254,7 @@ function ProductDetail() {
               value={product.salt_100g}
               unit="g"
               color="#a29bfe"
+              gradient="linear-gradient(135deg, #a29bfe 0%, #8e82fe 100%)"
             />
           </div>
         </div>
@@ -236,19 +263,19 @@ function ProductDetail() {
   );
 }
 
-// Composant pour afficher une carte nutritionnelle
-function NutritionCard({ icon, label, value, unit, color }) {
+function NutritionCard({ icon, label, value, unit, gradient }) {
   return (
     <div className="nutrition-card">
-      <div className="nutrition-icon" style={{ backgroundColor: color }}>
-        {icon}
+      <div className="nutrition-icon" style={{ background: gradient }}>
+        <span className="icon-emoji">{icon}</span>
       </div>
-      <div className="nutrition-info">
-        <div className="nutrition-label">{label}</div>
+      <div className="nutrition-details">
+        <span className="nutrition-label">{label}</span>
         <div className="nutrition-value">
           {value !== null && value !== undefined ? (
             <>
-              <strong>{value}</strong> {unit}
+              <span className="value-number">{value}</span>
+              <span className="value-unit">{unit}</span>
             </>
           ) : (
             <span className="not-available">Non disponible</span>

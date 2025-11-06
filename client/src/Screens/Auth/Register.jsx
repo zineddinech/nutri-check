@@ -1,9 +1,53 @@
 import React, { useState } from "react";
-import "./../../styles/Register.css";
+import "./../../Screens_CSS/Register.css";
 
 import StepPersonal from "./steps/StepPersonal";
 import StepRestrictions from "./steps/StepRestrictions";
 import StepPassword from "./steps/StepPassword";
+
+const BASE_URL = "http://localhost:8000";
+
+async function apiRegisterUser({ email, first_name, last_name, password }) {
+  const payload = {
+    email,
+    username: email,          // <<--- username = email
+    first_name,
+    last_name,
+    password,
+  };
+
+  const res = await fetch(`${BASE_URL}/api/users/register`, {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok) {
+    const txt = await res.text().catch(() => "");
+    throw new Error(`Register failed (HTTP ${res.status}) ${txt}`);
+  }
+  return res.json(); // { _id, email, username, ... }
+}
+
+async function apiAddAllergies(userId, allergies) {
+  const res = await fetch(`${BASE_URL}/api/users/${encodeURIComponent(userId)}/allergies`, {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(allergies), // ex: ["Milk","Sesame seeds"]
+  });
+
+  if (!res.ok) {
+    const txt = await res.text().catch(() => "");
+    throw new Error(`Add allergies failed (HTTP ${res.status}) ${txt}`);
+  }
+  return res.json();
+}
 
 function Register() {
   const [step, setStep] = useState(1);
@@ -13,39 +57,76 @@ function Register() {
   const [firstName, setFirstName] = useState("");
   const [email, setEmail] = useState("");
 
-  // Étape 2
-  const [restrictions, setRestrictions] = useState([]); // [{ type: "Allergie"|"Régime", item: "…" }]
+  // Étape 2 — deux listes distinctes
+  const [allergies, setAllergies] = useState([]); // ex: ["Milk", "Sesame seeds"]
+  const [regimes, setRegimes] = useState([]);     // on verra plus tard
 
   // Étape 3
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
 
   const [loading, setLoading] = useState(false);
+  const [submitError, setSubmitError] = useState("");
 
   const goNext = () => setStep((s) => Math.min(3, s + 1));
   const goPrev = () => setStep((s) => Math.max(1, s - 1));
 
   const finish = async () => {
-    if (password !== confirm || password.length < 8) return;
+    setSubmitError("");
+
+    // Validation minimale côté mot de passe
+    if (password !== confirm || password.length < 8) {
+      setSubmitError("Mot de passe invalide (au moins 8 caractères et confirmation identique).");
+      return;
+    }
+
+    // Validation minimale côté identité
+    if (!email.trim() || !firstName.trim() || !lastName.trim()) {
+      setSubmitError("Merci de compléter vos informations personnelles.");
+      setStep(1);
+      return;
+    }
+
     setLoading(true);
-
-    // TODO: remplacer par ton appel d’API d’inscription
-    const payload = {
-      lastName,
-      firstName,
-      email,
-      restrictions: restrictions.filter(r => r.type && r.item),
-      password
-    };
-    console.log("SUBMIT REGISTER", payload);
-
     try {
-      // ex:
-      // const res = await fetch(`${API_URL}/register`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
-      // if (!res.ok) throw new Error("Bad status");
-      alert("Inscription terminée ✅ (TODO: appel API)");
+      // 1) Register user
+      const user = await apiRegisterUser({
+        email: email.trim(),
+        first_name: firstName.trim(),
+        last_name: lastName.trim(),
+        password,
+      });
+
+      const userId = user?._id || user?.id;
+      if (!userId) {
+        throw new Error("Register ok mais pas d'_id renvoyé.");
+      }
+
+      // 2) Add allergies (si non vide)
+      const cleanAllergies = Array.from(
+        new Set((allergies || []).map((a) => a && a.toString().trim()).filter(Boolean))
+      );
+      if (cleanAllergies.length > 0) {
+        await apiAddAllergies(userId, cleanAllergies);
+      }
+
+      // 3) Stocker l'utilisateur dans le localStorage et notifier l'app
+      try {
+        localStorage.setItem("user", JSON.stringify(user));
+        localStorage.setItem("user_id", userId);
+        localStorage.setItem("user_first_name", user.first_name || "");
+        window.dispatchEvent(new Event("auth-changed"));
+      } catch {}
+
+      // 4) Success UX
+      alert("Inscription terminée");
+      // Optionnel: reset du formulaire / retour à l'étape 1
+      setStep(1); setEmail(""); setFirstName(""); setLastName("");
+      setAllergies([]); setRegimes([]); setPassword(""); setConfirm("");
+      navigate("/", { replace: true });
     } catch (e) {
-      alert("Erreur d’inscription (à brancher sur l’API).");
+      console.error(e);
+      setSubmitError(e.message || "Erreur d’inscription.");
     } finally {
       setLoading(false);
     }
@@ -80,8 +161,10 @@ function Register() {
 
         {step === 2 && (
           <StepRestrictions
-            restrictions={restrictions}
-            setRestrictions={setRestrictions}
+            allergies={allergies}
+            setAllergies={setAllergies}
+            regimes={regimes}
+            setRegimes={setRegimes}
             onPrev={goPrev}
             onNext={goNext}
           />
@@ -96,7 +179,12 @@ function Register() {
             onPrev={goPrev}
             onSubmit={finish}
             loading={loading}
+            submitError={submitError}
           />
+        )}
+
+        {!!submitError && step === 3 && (
+          <div style={{ marginTop: 12, fontSize: 14, color: "#dc2626" }}>{submitError}</div>
         )}
       </div>
     </div>

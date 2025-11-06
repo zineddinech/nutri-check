@@ -1,0 +1,184 @@
+.register-card {
+  max-width: 380px;
+  padding: 28px 20px 36px;
+  border-radius: 18px;
+  background: transparent; /* laisser le gradient visible */
+  box-shadow: none;
+}
+
+.register-title {
+  font-size: 34px;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: 0;
+  text-align: center;
+  margin-bottom: 2px; /* augmenter l'espace entre le titre et les pastilles */
+}
+
+/* Steps */
+/* Stepper */
+.steps {
+  /* on garde ton centrage, mais on pilote le gap via une variable */
+  --step-gap: 50px;            /* même valeur que ton gap actuel */
+  display: flex;
+  justify-content: center;
+  gap: var(--step-gap);
+  padding: 28px 0 28px;
+  width: 100%;
+  position: relative;          /* pour positionner les traits */
+}
+
+.step {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: #e8fddf;
+  color: #16be00;
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+  position: relative;          /* nécessaire pour le ::before */
+}
+
+/* Par défaut: pas de trait */
+.step::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: calc(-1 * var(--step-gap)); /* part de la pastille précédente */
+  width: var(--step-gap);           /* longueur = l'espacement entre pastilles */
+  height: 2px;
+  background: transparent;
+  transform: translateY(-50%);
+  border-radius: 1px;
+}
+
+/* On affiche le trait SEULEMENT si la pastille est active ET ce n'est pas la première */
+.step.active:not(:first-child)::before {
+  background: #e8fddf; /* même teinte que la pastille */
+}
+
+
+.step.active {
+  background: #e8fddf;
+  transform: scale(1.03);
+}
+
+/* Inputs agrandis pour style mobile */
+.input.large {
+  height: 52px;
+  padding: 0 16px;
+  border-radius: 12px;
+  background: #ffffff;
+  color: #222;
+}
+
+/* ----- Effet arrondi "harmonieux" pour les listes -----
+   On ne peut pas styler la popup native du <select>,
+   mais on enlève les arrondis du bas au champ quand il est actif,
+   pour que visuellement le haut reste arrondi et le bas droit. */
+select.input:focus,
+select.input:focus-visible,
+select.input.large:focus,
+select.input.large:focus-visible {
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+/* Optionnel : garde les coins sup du champ */
+select.input:focus,
+select.input.large:focus {
+  border-top-left-radius: 12px;
+  border-top-right-radius: 12px;
+}
+
+/* Hauteur des selects dans la liste des restrictions = 58px (comme les boutons) */
+.restrictions-list .row .input.large,
+.restrictions-list .row select.input,
+.restrictions-list .row select.input.large {
+  height: 58px;
+  padding: 0 16px;       /* garde l’horizontal, centre verticalement */
+  line-height: 58px;     /* aide certains navigateurs à centrer le texte */
+  /* pour les <select>, ça reste safe cross-browser */
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+}
+
+/* Footer */
+.form-footer {
+  margin-top: 32px; /* plus d'espace entre les champs et le bouton */
+  display: flex;
+  justify-content: center;
+}
+
+/* Même largeur que la colonne des champs (.form-stack = 340px) */
+.form-footer--narrow {
+  width: 340px;
+  max-width: 100%;
+  margin: 16px auto 0;      /* centre horizontalement + marge haute */
+  display: flex;
+  justify-content: center;  /* boutons centrés */
+  gap: 12px;                /* espace entre les deux */
+}
+
+/* Bloc centré (même principe que Connexion) */
+.form-stack {
+  width: 340px;
+  max-width: 100%;
+  margin: 0 auto;   /* centre horizontalement */
+  display: grid;
+  gap: 10px;
+}
+
+/* Largeur fixe et centrage des inputs de mot de passe */
+.form .input--fixed {
+  width: 320px;         /* fixe mais responsive grâce au max-width */
+  max-width: 100%;
+  justify-self: center; /* centre l'input dans la grille .form-stack */
+}
+
+/* Colonne commune pour aligner liste + bouton + */
+.restrictions-col {
+  --row-gap: 12px;          /* espace entre les RestrictionRow */
+  --list-plus-gap: 16px;    /* espace entre la liste et le bouton + */
+
+  width: 340px;             /* même largeur que .form-stack / footer */
+  max-width: 100%;
+  margin: 0 auto;           /* centré */
+  display: grid;
+  gap: var(--list-plus-gap);
+}
+
+/* Grille des lignes avec son gap propre */
+.restrictions-list {
+  display: grid;
+  gap: var(--row-gap);
+}
+
+/* Centre le bouton + dans la colonne */
+.restrictions-add {
+  display: flex;
+  justify-content: center;
+}
+
+.next-button {
+  width: 220px;
+  height: 52px;
+  border-radius: 14px;
+  background: #e8fddf;
+  color: #16be00;
+  font-weight: 500;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+}
+
+.error {
+  background: rgba(255,100,100,0.12);
+  color: #ffdddd;
+  padding: 8px 10px;
+  border-radius: 8px;
+  margin-bottom: 8px;
+}

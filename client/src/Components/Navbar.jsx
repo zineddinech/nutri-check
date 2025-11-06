@@ -20,7 +20,7 @@ function Navbar() {
         </NavLink>
 
         <NavLink
-          to="/courses"
+          to="/favorites"
           className={({ isActive }) => "nav-link" + (isActive ? " active" : "")}
         >
           Mes courses

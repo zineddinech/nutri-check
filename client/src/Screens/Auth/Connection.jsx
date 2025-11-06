@@ -5,8 +5,6 @@ function Conn() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState(false);
 
   const formData = new URLSearchParams();
   formData.append("username", email.trim());

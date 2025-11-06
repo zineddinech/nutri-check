@@ -195,3 +195,7 @@ class UserService:
         user["allergies"] = updated
         user["_id"] = str(user["_id"])
         return UserResponse(**user)
+    
+   
+
+    

@@ -6,6 +6,8 @@ import Products from "./Screens/Products";
 import "./styles/Background.css";
 import ProductDetail from "./Screens/ProductDetail";
 import Register from "./Screens/Auth/Register";
+import Favorites from "./Screens/favorites";
+import Profil from "./Screens/Auth/Profil";
 
 function App() {
   return (
@@ -18,7 +20,8 @@ function App() {
           <Route path="/register" element={<Register />} />
           <Route path="/produits" element={<Products />} />
           <Route path="/produits/:id" element={<ProductDetail />} />
-          <Route path="/favorites" element={<Products />} />
+          <Route path="/favorites" element={<Favorites />} />
+          <Route path="/Profil" element={<Profil />} />
         </Routes>
       </Router>
     </div>

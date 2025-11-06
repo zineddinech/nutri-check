@@ -1,7 +1,9 @@
 import React, { useState } from "react";
 import "./../../styles/Connection.css";
+import { useNavigate } from "react-router-dom";
 
 function Conn() {
+  const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -34,6 +36,8 @@ function Conn() {
 
       if (data) {
         localStorage.setItem("jwtToken", data.jwt_token);
+        navigate("/produits");
+        window.location.reload();
       }
     } catch (err) {
       console.error("Erreur lors de la requête :", err);

@@ -97,9 +97,9 @@ function Products() {
           preloadedPages.current.delete(page);
         } else {
           if (activeSearch.trim()) {
-            data = await getProductsSearched(activeSearch, page, 100);
+            data = await getProductsSearched(activeSearch, page, 100, filter);
           } else {
-            data = await getProductsByIndex(sort, page, 100);
+            data = await getProductsByIndex(sort, page, 100, filter);
           }
         }
 
@@ -125,8 +125,8 @@ function Products() {
               (async () => {
                 try {
                   const nextData = activeSearch.trim()
-                    ? await getProductsSearched(activeSearch, next, 100)
-                    : await getProductsByIndex(sort, next, 100);
+                    ? await getProductsSearched(activeSearch, next, 100, filter)
+                    : await getProductsByIndex(sort, next, 100, filter);
                   preloadedPages.current.set(next, nextData);
                 } catch {
                   /* silencieux */
@@ -174,7 +174,8 @@ function Products() {
     setPage(1);
     setHasMore(true);
     preloadedPages.current.clear();
-  }, [sort, activeSearch]);
+    setImages({});
+  }, [sort, activeSearch, filter]);
 
   /** ----------- Premier chargement ----------- */
   useEffect(() => {
@@ -226,12 +227,7 @@ function Products() {
     return getName(a).localeCompare(getName(b));
   });
 
-  const displayedProducts = filter
-    ? sortedProducts.filter((p) => {
-        const comp = p.compatibility ?? p.compatibility_score ?? 0;
-        return Number(comp) >= 50;
-      })
-    : sortedProducts;
+  const displayedProducts = sortedProducts;
 
   /** ----------- Rendu JSX ----------- */
   return (
@@ -246,7 +242,7 @@ function Products() {
                 onChange={() => setFilter((s) => !s)}
                 className="filter-checkbox"
               />
-              Filtrer par compatibilité
+              Filtrer selon profil
             </label>
 
             <div className="product-count">
@@ -256,7 +252,7 @@ function Products() {
                 <>
                   <strong>{displayedProducts.length}</strong>
                   {displayedProducts.length > 1 ? " produits" : " produit"}
-                  {filter && ` (compatibles ≥50%)`}
+                  {filter && ` (compatible)`}
                   {activeSearch && ` pour "${activeSearch}"`}
                 </>
               )}

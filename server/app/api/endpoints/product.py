@@ -1,7 +1,6 @@
-from typing import List
-
-from fastapi import APIRouter, Query
-
+from typing import List, Optional
+from fastapi import APIRouter, Query, Header
+from ...services.auth_service import get_current_user
 from ...schemas.product import ProductResponse
 from ...services.product_service import ProductService
 
@@ -13,14 +12,26 @@ async def search_local_products(
     query: str = Query(..., description="Terme de recherche pour les produits"),
     page: int = Query(1, ge=1, description="Numéro de page (index)"),
     page_size: int = Query(
-        100, ge=1, le=1000, description="Nombre de résultats par page"
-    ),
+        100, ge=1, le=1000, description="Nombre de résultats par page"),
+    authorization: Optional[str] = Header(None),
 ):
     """
-    Ce point de terminaison recherche les produits
-    dans la base de données MongoDB locale.
+    Ce point de terminaison recherche les produits dans la base de données MongoDB locale
+    et filtre optionnellement sur les allergies de l'utilisateur.
     """
-    products = await ProductService.search_products(query, page, page_size)
+    user_allergens = None
+
+    if authorization:
+        try:
+            token = authorization.replace("Bearer ", "")
+            user = await get_current_user(token)
+            user_allergens = user.allergies or None
+        except Exception:
+            pass
+
+    products = await ProductService.search_products(
+        query, page, page_size, user_allergens
+    )
     return products
 
 
@@ -32,14 +43,25 @@ async def get_products_by_index(
     ),
     page: int = Query(1, ge=1, description="Numéro de page (index)"),
     page_size: int = Query(
-        100, ge=1, le=1000, description="Nombre de résultats par page"
-    ),
+        100, ge=1, le=1000, description="Nombre de résultats par page"),
+    authorization: Optional[str] = Header(None),
 ):
     """
-    Ce point de terminaison récupère les produits triés par une condition donnée.
+    Ce point de terminaison récupère les produits triés par une condition donnée
+    et filtre optionnellement sur les allergies de l'utilisateur.
     """
+    user_allergens = None
+
+    if authorization:
+        try:
+            token = authorization.replace("Bearer ", "")
+            user = await get_current_user(token)
+            user_allergens = user.allergies or None
+        except Exception:
+            pass
+
     products = await ProductService.get_products_sorted(
-        sort_by=sort_by, page=page, page_size=page_size
+        sort_by, page, page_size, user_allergens
     )
     return products
 

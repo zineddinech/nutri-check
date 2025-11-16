@@ -25,7 +25,11 @@ class AsyncMongoCollection:
 
     def __init__(self, collection):
         self._collection = collection
-
+        
+    def find(self, *args, **kwargs):
+        cursor = self._collection.find(*args, **kwargs)
+        return AsyncMongoCursor(cursor)
+    
     def __getattr__(self, item):
         attr = getattr(self._collection, item)
         if callable(attr):
@@ -139,3 +143,15 @@ def sample_allergens():
     Exemple de liste d'allergènes simulée.
     """
     return ["Crustaceans", "Peanut", "Matsutake", "Milk", "Eggs"]
+
+
+class AsyncMongoCursor:
+    def __init__(self, cursor):
+        self.cursor = cursor
+
+    def sort(self, *args, **kwargs):
+        self.cursor = self.cursor.sort(*args, **kwargs)
+        return self
+
+    async def to_list(self, length=None):
+        return list(self.cursor)

@@ -17,7 +17,6 @@ function Products() {
   const navigate = useNavigate();
   const [sort, setSort] = useState("nutriscore_score_asc");
   const [filter, setFilter] = useState(false);
-  const [images, setImages] = useState({});
   const [products, setProducts] = useState([]);
   const [page, setPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState("");
@@ -29,11 +28,13 @@ function Products() {
 
   const observerRef = useRef();
   const loadingRef = useRef(null);
-  const imageCache = useRef(new Map());
   const preloadedPages = useRef(new Map());
 
   const DEFAULT_IMAGE =
     "https://via.placeholder.com/150/e0e0e0/757575?text=Produit";
+
+  const API_BASE = "http://localhost:8000";
+  const getLocalImage = (code) => `${API_BASE}/images/${code}.jpg`;
 
   /** ----------- Charger l'utilisateur et ses favoris ----------- */
   useEffect(() => {
@@ -81,60 +82,6 @@ function Products() {
       alert("Erreur lors de la modification du favori");
     }
   };
-
-  /** ----------- Chargement des images avec cache ----------- */
-  const loadImage = useCallback(async (id, name) => {
-    if (imageCache.current.has(id)) {
-      setImages((prev) => ({ ...prev, [id]: imageCache.current.get(id) }));
-      return;
-    }
-
-    try {
-      const response = await fetch(
-        `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(
-          name
-        )}&search_simple=1&action=process&json=1&page_size=1`
-      );
-
-      if (!response.ok)
-        throw new Error(`HTTP error! status: ${response.status}`);
-
-      const data = await response.json();
-      const img =
-        data?.products?.[0]?.image_front_url ||
-        data?.products?.[0]?.image_url ||
-        DEFAULT_IMAGE;
-
-      imageCache.current.set(id, img);
-      setImages((prev) => ({ ...prev, [id]: img }));
-    } catch (error) {
-      imageCache.current.set(id, DEFAULT_IMAGE);
-      setImages((prev) => ({ ...prev, [id]: DEFAULT_IMAGE }));
-    }
-  }, []);
-
-  /** ----------- Chargement batch d'images ----------- */
-  useEffect(() => {
-    const loadImagesInBatch = async () => {
-      const batchSize = 5;
-      for (let i = 0; i < products.length; i += batchSize) {
-        const batch = products.slice(i, i + batchSize);
-        await Promise.all(
-          batch.map((product) => {
-            const id = product._id ?? product.id;
-            const name = product.product_name ?? product.name ?? "";
-            if (id && name && !imageCache.current.has(id)) {
-              return loadImage(id, name);
-            }
-            return Promise.resolve();
-          })
-        );
-        await new Promise((resolve) => setTimeout(resolve, 50));
-      }
-    };
-
-    if (products.length > 0) loadImagesInBatch();
-  }, [products, loadImage]);
 
   /** ----------- Chargement de produits (avec préchargement) ----------- */
   const loadMoreProducts = useCallback(
@@ -226,9 +173,7 @@ function Products() {
     setProducts([]);
     setPage(1);
     setHasMore(true);
-    imageCache.current.clear();
     preloadedPages.current.clear();
-    setImages({});
   }, [sort, activeSearch]);
 
   /** ----------- Premier chargement ----------- */
@@ -362,35 +307,28 @@ function Products() {
           ) : (
             <div className="products-grid">
               {displayedProducts.map((product) => {
-                const id =
-                  product._id ??
-                  product.id ??
-                  Math.random().toString(36).slice(2);
+                const code = product.code ?? product._id ?? product.id;
                 const name = product.product_name ?? product.name ?? "—";
                 const nutri =
                   product.nutriscore_score ?? product.nutriscore ?? "—";
-                const imageUrl = images[id];
                 const compatibility =
                   product.compatibility ?? product.compatibility_score ?? 0;
-                const isFavorite = favorites.has(id);
+                const isFavorite = favorites.has(code);
+
+                const imageUrl = getLocalImage(code);
 
                 return (
                   <div
                     className="product-card"
-                    key={id}
-                    onClick={() => handleProductClick(id)}
+                    key={code}
+                    onClick={() => handleProductClick(code)}
                     style={{ cursor: "pointer" }}
                   >
                     <button
                       className={`favorite-button ${
                         isFavorite ? "favorite-active" : ""
                       }`}
-                      onClick={(e) => handleToggleFavorite(e, id)}
-                      aria-label={
-                        isFavorite
-                          ? "Retirer des favoris"
-                          : "Ajouter aux favoris"
-                      }
+                      onClick={(e) => handleToggleFavorite(e, code)}
                     >
                       {isFavorite ? "❤️" : "🤍"}
                     </button>
@@ -398,21 +336,19 @@ function Products() {
                     <div className="compatibility">
                       Compatible à {compatibility}%
                     </div>
+
                     <div className="product-image-container">
-                      {!imageUrl ? (
-                        <div className="image-skeleton"></div>
-                      ) : (
-                        <img
-                          src={imageUrl}
-                          alt={name}
-                          className="product-image visible"
-                          loading="lazy"
-                          onError={(e) => {
-                            e.target.src = "https://via.placeholder.com/150";
-                          }}
-                        />
-                      )}
+                      <img
+                        src={imageUrl}
+                        alt={name}
+                        className="product-image visible"
+                        loading="lazy"
+                        onError={(e) => {
+                          e.target.src = DEFAULT_IMAGE;
+                        }}
+                      />
                     </div>
+
                     <div className="product-title">{name}</div>
                     <div className="nutriscore">Nutri-Score: {nutri}</div>
                   </div>

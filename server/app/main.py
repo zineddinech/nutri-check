@@ -1,15 +1,44 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from pathlib import Path
+from fastapi.staticfiles import StaticFiles
+from starlette.middleware.base import BaseHTTPMiddleware
 
 from .api.api import api_router
 from .database.database import client as db_client
 from .database.database import db
+
+BASE_DIR = Path(__file__).resolve().parents[1]  # /app/app → parents[1] = /app
+IMAGES_DIR = BASE_DIR / "compressed_images"
+IMAGES_DIR.mkdir(parents=True, exist_ok=True)
 
 # --- Application FastAPI ---
 app = FastAPI(
     title="Nutri-Check API",
     description="API pour rechercher des produits alimentaires et gérer les utilisateurs.",
     version="3.0.0",
+)
+
+class ImageCacheMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request, call_next):
+        response = await call_next(request)
+
+        # On cible uniquement les fichiers d'images et 200 OK
+        path = request.url.path
+        if path.startswith("/images/") and response.status_code == 200:
+            # Cache 30 jours + immutable (le navigateur ne re-vérifie même pas)
+            response.headers["Cache-Control"] = "public, max-age=2592000, immutable"
+        elif response.status_code == 404:
+            response.headers["Cache-Control"] = "public, max-age=600"  # ex: 10 minutes pour les 404
+
+        return response
+
+app.add_middleware(ImageCacheMiddleware)
+
+app.mount(
+    "/images",
+    StaticFiles(directory=str(IMAGES_DIR)),
+    name="images",
 )
 
 # Autoriser CORS pour le dev (ajoute ou adapte les origines si besoin)

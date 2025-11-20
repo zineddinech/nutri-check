@@ -29,6 +29,7 @@ services:
       # Monte le code source du serveur dans le conteneur.
       # Cela permet le "hot-reloading" : les changements dans le code sont immédiatement pris en compte sans redémarrer le conteneur.
       - ./server:/app
+      - ./server/compressed_images:/app/compressed_images
     environment:
       # L'URI de connexion pour que l'API puisse trouver la base de données.
       # 'mongo' est le nom du service de base de données défini ci-dessus.
@@ -41,8 +42,8 @@ services:
       - nutri-network
 
   client:
-   # Construit l'image Docker à partir du Dockerfile situé dans le dossier './client'.
-   # NOTE: Vous devrez créer un Dockerfile pour le client si ce n'est pas déjà fait.
+    # Construit l'image Docker à partir du Dockerfile situé dans le dossier './client'.
+    # NOTE: Vous devrez créer un Dockerfile pour le client si ce n'est pas déjà fait.
     build: ./client
     container_name: nutri_client
     ports:
@@ -53,7 +54,7 @@ services:
       # L'astuce '/app/node_modules' empêche le dossier node_modules local de masquer celui du conteneur.
       - ./client:/app
       - /app/node_modules
-   # S'assure que le backend est démarré avant le frontend.
+    # S'assure que le backend est démarré avant le frontend.
     depends_on:
       - server
     networks:

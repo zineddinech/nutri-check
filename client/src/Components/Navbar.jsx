@@ -3,6 +3,15 @@ import { useState, useEffect } from "react";
 import "./../styles/Navbar.css";
 import { getConnectedUser } from "../services/authService";
 
+function getStoredUser() {
+  try {
+    const raw = localStorage.getItem("user");
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
 function Navbar() {
   const navigate = useNavigate();
   const [isConnected, setIsConnected] = useState(false);

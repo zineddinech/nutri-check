@@ -174,7 +174,6 @@ function Products() {
     setPage(1);
     setHasMore(true);
     preloadedPages.current.clear();
-    setImages({});
   }, [sort, activeSearch, filter]);
 
   /** ----------- Premier chargement ----------- */

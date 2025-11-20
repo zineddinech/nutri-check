@@ -3,34 +3,77 @@ import { useParams, useNavigate } from "react-router-dom";
 import { getProductById } from "../services/productService";
 import "./../styles/ProductDetail.css";
 
+const OFF_PRODUCT_BY_CODE = "https://world.openfoodfacts.org/api/v2/product/";
+const FALLBACK_IMG =
+  "https://via.placeholder.com/400/e0e0e0/757575?text=Image+non+disponible";
+
 function ProductDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [product, setProduct] = useState(null);
   const [image, setImage] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(true);      // → uniquement pour le produit
   const [error, setError] = useState(null);
   const [imageLoaded, setImageLoaded] = useState(false);
 
+  // 1) Charger le produit (backend Nutri-Check)
   useEffect(() => {
+    let cancelled = false;
+
     const fetchProductDetail = async () => {
       try {
         setLoading(true);
-        const data = await getProductById(id);
-        setProduct(data);
+        setError(null);
+        setImage(null);
+        setImageLoaded(false);
 
-        if (data.product_name) {
-          loadProductImage(data.product_name);
-        }
+        const data = await getProductById(id);
+        if (cancelled) return;
+
+        setProduct(data);
       } catch (err) {
+        if (cancelled) return;
         console.error("Erreur lors du chargement du produit:", err);
         setError(err.message);
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);  // ✅ on arrête le spinner dès que le produit est là
       }
     };
 
-    const loadProductImage = async (name) => {
+    fetchProductDetail();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [id]);
+
+  // 2) Charger l’image OFF *après* que le produit soit là (en parallèle)
+  useEffect(() => {
+    if (!product) return;
+
+    let cancelled = false;
+
+    const loadImageByCode = async (code) => {
+      try {
+        const resp = await fetch(`${OFF_PRODUCT_BY_CODE}${code}.json`);
+        if (!resp.ok) throw new Error("Image non disponible");
+
+        const data = await resp.json();
+        const prod = data.product || {};
+
+        const img =
+          prod.image_front_url ||
+          prod.image_front_small_url ||
+          prod.image_url ||
+          FALLBACK_IMG;
+
+        if (!cancelled) setImage(img);
+      } catch (e) {
+        if (!cancelled) setImage(FALLBACK_IMG);
+      }
+    };
+
+    const loadImageByName = async (name) => {
       try {
         const response = await fetch(
           `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(
@@ -44,18 +87,33 @@ function ProductDetail() {
         const img =
           data?.products?.[0]?.image_front_url ||
           data?.products?.[0]?.image_url ||
-          "https://via.placeholder.com/400/e0e0e0/757575?text=Image+non+disponible";
+          FALLBACK_IMG;
 
-        setImage(img);
+        if (!cancelled) setImage(img);
       } catch {
-        setImage(
-          "https://via.placeholder.com/400/e0e0e0/757575?text=Image+non+disponible"
-        );
+        if (!cancelled) setImage(FALLBACK_IMG);
       }
     };
 
-    fetchProductDetail();
-  }, [id]);
+    const code = product?.code;
+    const name = product?.product_name;
+
+    // on reset l’état image à chaque nouveau produit
+    setImage(null);
+    setImageLoaded(false);
+
+    if (code) {
+      loadImageByCode(code);
+    } else if (name) {
+      loadImageByName(name);
+    } else {
+      setImage(FALLBACK_IMG);
+    }
+
+    return () => {
+      cancelled = true;
+    };
+  }, [product]);
 
   const getNutriscoreColor = (grade) => {
     const colors = {
@@ -113,7 +171,6 @@ function ProductDetail() {
       </button>
 
       <div className="product-detail-content">
-        {/* Header avec image et infos principales */}
         <div className="product-header">
           <div className="image-wrapper">
             {!imageLoaded && (
@@ -122,16 +179,12 @@ function ProductDetail() {
               </div>
             )}
             <img
-              src={
-                image ||
-                "https://via.placeholder.com/400/e0e0e0/757575?text=Image+non+disponible"
-              }
+              src={image || FALLBACK_IMG}
               alt={product.product_name}
               className={`product-image ${imageLoaded ? "loaded" : ""}`}
               onLoad={() => setImageLoaded(true)}
               onError={(e) => {
-                e.target.src =
-                  "https://via.placeholder.com/400/e0e0e0/757575?text=Image+non+disponible";
+                e.target.src = FALLBACK_IMG;
                 setImageLoaded(true);
               }}
             />

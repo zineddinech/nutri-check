@@ -19,5 +19,5 @@ COPY . .
 EXPOSE 8000
 
 # ---- Run FastAPI with Uvicorn ----
-CMD ["sh", "-c", "poetry run python -m utils.scripts.fetchAndCompressImages && poetry run uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"]
+CMD ["sh", "-c", "poetry run uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"]
 

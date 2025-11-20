@@ -1,12 +1,11 @@
-import os
 import asyncio
-from pathlib import Path
+import os
 from io import BytesIO
+from pathlib import Path
 
 import requests
 from motor.motor_asyncio import AsyncIOMotorClient
 from PIL import Image
-
 
 # --- Config Mongo ---
 MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017")
@@ -18,12 +17,12 @@ API_URL = "https://world.openfoodfacts.org/api/v2/product/{code}.json"
 # --- Dossiers (côté serveur) ---
 # /app (racine Docker) -> utils/scripts/fetchAndCompressImages.py
 # parents[1] = /app
-BASE_DIR = Path(__file__).resolve().parents[2]   # /app
+BASE_DIR = Path(__file__).resolve().parents[2]  # /app
 COMPRESSED_DIR = BASE_DIR / "compressed_images"
 COMPRESSED_DIR.mkdir(exist_ok=True)
 
 # --- Compression ---
-MAX_SIZE = (200, 200)   # max 200x200
+MAX_SIZE = (200, 200)  # max 200x200
 JPEG_QUALITY = 80
 
 

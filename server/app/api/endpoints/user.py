@@ -135,8 +135,3 @@ async def remove_allergies_from_user(user_id: str, allergies: List[str] = Body(.
             status_code=status.HTTP_404_NOT_FOUND, detail="Utilisateur non trouvé"
         )
     return user
-
-
-
-
-

@@ -1,6 +1,7 @@
+from pathlib import Path
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from pathlib import Path
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.base import BaseHTTPMiddleware
 
@@ -19,6 +20,7 @@ app = FastAPI(
     version="3.0.0",
 )
 
+
 class ImageCacheMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request, call_next):
         response = await call_next(request)
@@ -29,9 +31,12 @@ class ImageCacheMiddleware(BaseHTTPMiddleware):
             # Cache 30 jours + immutable (le navigateur ne re-vérifie même pas)
             response.headers["Cache-Control"] = "public, max-age=2592000, immutable"
         elif response.status_code == 404:
-            response.headers["Cache-Control"] = "public, max-age=600"  # ex: 10 minutes pour les 404
+            response.headers["Cache-Control"] = (
+                "public, max-age=600"  # ex: 10 minutes pour les 404
+            )
 
         return response
+
 
 app.add_middleware(ImageCacheMiddleware)
 

@@ -1,6 +1,8 @@
 from typing import List
-from pymongo import ASCENDING, DESCENDING
+
 from bson import ObjectId
+from pymongo import ASCENDING, DESCENDING
+
 from ..database.database import get_db
 
 
@@ -27,12 +29,7 @@ class ProductService:
                 expanded_allergens.append(f"en:{a}")
             filter_query["allergens"] = {"$nin": expanded_allergens}
 
-        products_cursor = (
-            db["products"]
-            .find(filter_query)
-            .skip(skip)
-            .limit(page_size)
-        )
+        products_cursor = db["products"].find(filter_query).skip(skip).limit(page_size)
 
         products = await products_cursor.to_list(length=page_size)
         return products
@@ -48,9 +45,7 @@ class ProductService:
         db = get_db()
         skip = (page - 1) * page_size
 
-        filter_query = {
-            "product_name": {"$exists": True, "$nin": [None, ""]}
-        }
+        filter_query = {"product_name": {"$exists": True, "$nin": [None, ""]}}
 
         # Filtre optionnel sur les allergens
         if user_allergens:
@@ -101,7 +96,6 @@ class ProductService:
         products = await products_cursor.to_list(length=page_size)
         return products
 
-
     @staticmethod
     async def get_product_by_id(product_id: str) -> dict:
         """
@@ -110,4 +104,3 @@ class ProductService:
         db = get_db()
         product = await db["products"].find_one({"_id": product_id})
         return product
-    

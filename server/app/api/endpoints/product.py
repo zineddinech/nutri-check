@@ -1,7 +1,9 @@
 from typing import List, Optional
-from fastapi import APIRouter, Query, Header
-from ...services.auth_service import get_current_user
+
+from fastapi import APIRouter, Header, Query
+
 from ...schemas.product import ProductResponse
+from ...services.auth_service import get_current_user
 from ...services.product_service import ProductService
 
 router = APIRouter()
@@ -12,7 +14,8 @@ async def search_local_products(
     query: str = Query(..., description="Terme de recherche pour les produits"),
     page: int = Query(1, ge=1, description="Numéro de page (index)"),
     page_size: int = Query(
-        100, ge=1, le=1000, description="Nombre de résultats par page"),
+        100, ge=1, le=1000, description="Nombre de résultats par page"
+    ),
     authorization: Optional[str] = Header(None),
 ):
     """
@@ -43,7 +46,8 @@ async def get_products_by_index(
     ),
     page: int = Query(1, ge=1, description="Numéro de page (index)"),
     page_size: int = Query(
-        100, ge=1, le=1000, description="Nombre de résultats par page"),
+        100, ge=1, le=1000, description="Nombre de résultats par page"
+    ),
     authorization: Optional[str] = Header(None),
 ):
     """

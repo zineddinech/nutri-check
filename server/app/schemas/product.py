@@ -2,6 +2,7 @@ from typing import Any, List, Optional
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+
 # data-fields : https://static.openfoodfacts.org/data/data-fields.txt
 class ProductResponse(BaseModel):
     id: str = Field(alias="_id")

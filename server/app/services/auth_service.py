@@ -16,7 +16,8 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> UserResponse:
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    email = payload.get("sub")
+    email = payload.get("email")
+    print(payload)
     if not email:
         raise HTTPException(status_code=401, detail="Token invalide")
 

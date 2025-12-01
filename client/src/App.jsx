@@ -3,7 +3,11 @@ import Navbar from "./Components/Navbar";
 import Home from "./Screens/Home";
 import Connection from "./Screens/Auth/Connection";
 import Products from "./Screens/Products";
-import "./Screens_CSS/Background.css";
+import "./styles/Background.css";
+import ProductDetail from "./Screens/ProductDetail";
+import Register from "./Screens/Auth/Register";
+import Favorites from "./Screens/favorites";
+import Profil from "./Screens/Auth/Profil";
 
 function App() {
   return (
@@ -13,10 +17,11 @@ function App() {
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/login" element={<Connection />} />
+          <Route path="/register" element={<Register />} />
           <Route path="/produits" element={<Products />} />
-          {/*<Route path="/courses" element={<Courses />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} /> */}
+          <Route path="/produits/:id" element={<ProductDetail />} />
+          <Route path="/favorites" element={<Favorites />} />
+          <Route path="/Profil" element={<Profil />} />
         </Routes>
       </Router>
     </div>

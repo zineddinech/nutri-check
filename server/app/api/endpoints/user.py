@@ -135,3 +135,19 @@ async def remove_allergies_from_user(user_id: str, allergies: List[str] = Body(.
             status_code=status.HTTP_404_NOT_FOUND, detail="Utilisateur non trouvé"
         )
     return user
+
+
+@router.post("/{user_id}/favorites/{product_id}", response_model=UserResponse)
+async def add_favorite(user_id: str, product_id: str):
+    """
+    Ajoute un produit aux favoris de l’utilisateur
+    """
+    user = await UserService.add_favorite(user_id, product_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="Utilisateur non trouvé")
+    return user
+
+
+
+
+

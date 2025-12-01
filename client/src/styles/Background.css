@@ -1,0 +1,14 @@
+/* Fallback + unité moderne pour la hauteur visible */
+.background {
+  height: 100vh;      /* fallback anciens navigateurs */
+  min-height: 100svh; /* hauteur visible fiable */
+  width: 100%;        /* évite 100vw (cause de scroll) */
+  background:
+    radial-gradient(circle 300px at left, #FF00004D, #00000000),
+    linear-gradient(to top, #0a4214 0%, #a897974D 40%, #120e0e 90%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  text-align: center;
+}

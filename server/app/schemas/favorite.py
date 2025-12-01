@@ -1,10 +1,13 @@
-from pydantic import BaseModel, Field
-from typing import Optional
 from datetime import datetime
+from typing import Optional
+
+from pydantic import BaseModel, Field
+
 
 class FavoriteCreate(BaseModel):
     user_id: str
     product_id: str
+
 
 class FavoriteResponse(BaseModel):
     id: Optional[str] = Field(alias="_id", default=None)

@@ -1,7 +1,10 @@
 from datetime import datetime
+
 from bson import ObjectId
 from fastapi import HTTPException, status
+
 from ..database.database import get_db
+
 
 class ShoppingTripService:
     @staticmethod
@@ -20,21 +23,23 @@ class ShoppingTripService:
             if not product:
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND,
-                    detail=f"Produit {item.product_id} introuvable"
+                    detail=f"Produit {item.product_id} introuvable",
                 )
 
             nutri_value = product.get("nutriscore_score")
             if isinstance(nutri_value, (int, float)):
                 nutri_scores.append(nutri_value)
 
-            valid_products.append({
-                "product_id": item.product_id,
-                "product_name": product.get("product_name"),
-                "brands": product.get("brands"),
-                "nutriscore_score": nutri_value,
-                "ecoscore_score": product.get("ecoscore_score"),
-                "quantity": item.quantity
-            })
+            valid_products.append(
+                {
+                    "product_id": item.product_id,
+                    "product_name": product.get("product_name"),
+                    "brands": product.get("brands"),
+                    "nutriscore_score": nutri_value,
+                    "ecoscore_score": product.get("ecoscore_score"),
+                    "quantity": item.quantity,
+                }
+            )
 
         if nutri_scores:
             avg_score = round(sum(nutri_scores) / len(nutri_scores), 2)
@@ -51,7 +56,7 @@ class ShoppingTripService:
             "average_nutriscore_grade": avg_letter,
             "nutriscore_count": len(nutri_scores),
             "total_products": len(valid_products),
-            "created_at": datetime.utcnow().isoformat()
+            "created_at": datetime.utcnow().isoformat(),
         }
 
         result = await db["shopping_trips"].insert_one(trip_doc)
@@ -62,7 +67,7 @@ class ShoppingTripService:
             "average_nutriscore_score": avg_score,
             "average_nutriscore_grade": avg_letter,
             "nutriscore_count": len(nutri_scores),
-            "total_products": len(valid_products)
+            "total_products": len(valid_products),
         }
 
     @staticmethod
@@ -81,7 +86,9 @@ class ShoppingTripService:
     @staticmethod
     async def get_shopping_trips_by_user(user_id: str):
         db = get_db()
-        trips_cursor = db["shopping_trips"].find({"user_id": user_id}).sort("created_at", -1)
+        trips_cursor = (
+            db["shopping_trips"].find({"user_id": user_id}).sort("created_at", -1)
+        )
         trips = await trips_cursor.to_list(length=None)
         for t in trips:
             t["_id"] = str(t["_id"])

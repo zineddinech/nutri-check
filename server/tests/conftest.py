@@ -6,6 +6,7 @@ Contient :
 - Un client FastAPI pour les tests d’API
 - Des données de test communes
 """
+
 import mongomock
 import pytest
 from fastapi.testclient import TestClient

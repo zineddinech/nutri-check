@@ -29,6 +29,9 @@ function Products() {
   const observerRef = useRef();
   const loadingRef = useRef(null);
   const preloadedPages = useRef(new Map());
+  const loadingStateRef = useRef(loading);
+  const pageRef = useRef(page);
+  const hasMoreRef = useRef(hasMore);
 
   const DEFAULT_IMAGE =
     "https://via.placeholder.com/150/e0e0e0/757575?text=Produit";
@@ -85,21 +88,29 @@ function Products() {
 
   /** ----------- Chargement de produits (avec préchargement) ----------- */
   const loadMoreProducts = useCallback(
-    async (fromPreload = false) => {
-      if (loading || !hasMore) return;
+    async (fromPreload = false, reset = false, pageToLoad = null) => {
+      if (loadingStateRef.current || !hasMoreRef.current) return;
+
+      const targetPage = pageToLoad ?? pageRef.current;
 
       setLoading(true);
+      loadingStateRef.current = true;
       try {
         let data;
 
-        if (fromPreload && preloadedPages.current.has(page)) {
-          data = preloadedPages.current.get(page);
-          preloadedPages.current.delete(page);
+        if (fromPreload && preloadedPages.current.has(targetPage)) {
+          data = preloadedPages.current.get(targetPage);
+          preloadedPages.current.delete(targetPage);
         } else {
           if (activeSearch.trim()) {
-            data = await getProductsSearched(activeSearch, page, 100, filter);
+            data = await getProductsSearched(
+              activeSearch,
+              targetPage,
+              100,
+              filter
+            );
           } else {
-            data = await getProductsByIndex(sort, page, 100, filter);
+            data = await getProductsByIndex(sort, targetPage, 100, filter);
           }
         }
 
@@ -109,18 +120,31 @@ function Products() {
 
         if (arr.length === 0) {
           setHasMore(false);
+          hasMoreRef.current = false;
+          if (reset) {
+            setProducts([]);
+          }
         } else {
-          setProducts((prev) => {
-            const existingIds = new Set(prev.map((p) => p._id ?? p.id));
-            const newProducts = arr.filter((p) => {
-              const id = p._id ?? p.id;
-              return !existingIds.has(id);
+          if (reset) {
+            const normalized = arr.map((p) => p);
+            setProducts(normalized);
+            setPage(targetPage + 1);
+            pageRef.current = targetPage + 1;
+          } else {
+            setProducts((prev) => {
+              const existingIds = new Set(prev.map((p) => p._id ?? p.id));
+              const newProducts = arr.filter((p) => {
+                const id = p._id ?? p.id;
+                return !existingIds.has(id);
+              });
+              return [...prev, ...newProducts];
             });
-            return [...prev, ...newProducts];
-          });
-          setPage((prev) => prev + 1);
+            const newPage = pageRef.current + 1;
+            setPage(newPage);
+            pageRef.current = newPage;
+          }
 
-          for (let next = page + 1; next <= page + 2; next++) {
+          for (let next = targetPage + 1; next <= targetPage + 2; next++) {
             if (!preloadedPages.current.has(next)) {
               (async () => {
                 try {
@@ -138,11 +162,13 @@ function Products() {
       } catch (error) {
         console.error("Erreur lors du chargement:", error);
         setHasMore(false);
+        hasMoreRef.current = false;
       } finally {
         setLoading(false);
+        loadingStateRef.current = false;
       }
     },
-    [loading, hasMore, activeSearch, page, sort]
+    [activeSearch, sort, filter]
   );
 
   /** ----------- Scroll infini ----------- */
@@ -170,11 +196,13 @@ function Products() {
 
   /** ----------- Réinitialisation quand tri/recherche change ----------- */
   useEffect(() => {
-    setProducts([]);
     setPage(1);
+    pageRef.current = 1;
     setHasMore(true);
+    hasMoreRef.current = true;
     preloadedPages.current.clear();
-  }, [sort, activeSearch, filter]);
+    loadMoreProducts(false, true, 1);
+  }, [sort, activeSearch, filter, loadMoreProducts]);
 
   /** ----------- Premier chargement ----------- */
   useEffect(() => {

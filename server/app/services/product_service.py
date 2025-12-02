@@ -25,9 +25,11 @@ class ProductService:
             # FIXME: solution temporaire
             expanded_allergens = []
             for a in user_allergens:
-                expanded_allergens.append(a)
-                expanded_allergens.append(f"en:{a}")
-            filter_query["allergens"] = {"$nin": expanded_allergens}
+                # Normaliser en minuscules pour matcher les produits
+                a_lower = a.lower()
+                expanded_allergens.append(a_lower)
+                expanded_allergens.append(f"en:{a_lower}")
+            filter_query["allergens"] = {"$not": {"$in": expanded_allergens}}
 
         products_cursor = db["products"].find(filter_query).skip(skip).limit(page_size)
 
@@ -52,9 +54,11 @@ class ProductService:
             # FIXME: solution temporaire
             expanded_allergens = []
             for a in user_allergens:
-                expanded_allergens.append(a)
-                expanded_allergens.append(f"en:{a}")
-            filter_query["allergens"] = {"$nin": expanded_allergens}
+                # Normaliser en minuscules pour matcher les produits
+                a_lower = a.lower()
+                expanded_allergens.append(a_lower)
+                expanded_allergens.append(f"en:{a_lower}")
+            filter_query["allergens"] = {"$not": {"$in": expanded_allergens}}
 
         # Analyser la condition de tri (sort_by)
         try:

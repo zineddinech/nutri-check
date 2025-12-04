@@ -36,12 +36,12 @@ class UserResponse(UserBase):
     id: Optional[str] = Field(alias="_id", default=None)
     is_active: bool = True
     allergies: List[str] = []
-    created_at: Optional[datetime] = None  # ✅ accepte un datetime
-    updated_at: Optional[datetime] = None  # ✅ idem
+    created_at: Optional[datetime] = None  
+    updated_at: Optional[datetime] = None  
 
     class Config:
         populate_by_name = True
-        # ✅ sérialisation propre
+       
         json_encoders = {ObjectId: str, datetime: lambda v: v.isoformat()}
 
 

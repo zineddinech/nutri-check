@@ -1,7 +1,6 @@
 /* Fallback + unité moderne pour la hauteur visible */
 .background {
-  height: 100vh;      /* fallback anciens navigateurs */
-  min-height: 100svh; /* hauteur visible fiable */
+  min-height: 100vh;      /* fallback anciens navigateurs */
   width: 100%;        /* évite 100vw (cause de scroll) */
   background:
     radial-gradient(circle 300px at left, #FF00004D, #00000000),

@@ -1,13 +1,74 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect,useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import "../../styles/Profil.css";
 import "../../styles/Background.css";
 import { getConnectedUser } from "../../services/authService";
-
+import { addAllergy, removeAllergy } from "../../services/authService";
 function Profil() {
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [newAllergy, setNewAllergy] = useState("");
+  const [suggestions, setSuggestions] = useState([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [loadingSuggestions, setLoadingSuggestions] = useState(false);
+  const [updating, setUpdating] = useState(false);
+  const dropdownRef = useRef(null);
+
+useEffect(() => {
+  if (!newAllergy.trim()) {
+    setSuggestions([]);
+    return;
+  }
+
+  const controller = new AbortController();
+  const timer = setTimeout(async () => {
+    try {
+      setLoadingSuggestions(true);
+
+      const res = await fetch(
+        `http://localhost:8000/api/profil/getAllergiesByName?query=${encodeURIComponent(newAllergy.trim())}`,
+        { signal: controller.signal }
+      );
+
+      const data = await res.json();
+      let list = [];
+
+      if (Array.isArray(data)) list = data;
+      else if (Array.isArray(data?.allergies)) list = data.allergies;
+
+      const taken = new Set((user.allergies || []).map(a => a.toLowerCase()));
+
+      const filtered = Array.from(new Set(list))
+        .filter(Boolean)
+        .filter(x => !taken.has(x.toLowerCase()));
+
+      setSuggestions(filtered);
+      setShowSuggestions(true);
+    } catch {}
+    finally {
+      setLoadingSuggestions(false);
+    }
+  }, 250);
+
+  return () => {
+    clearTimeout(timer);
+    controller.abort();
+  };
+}, [newAllergy, user]);
+useEffect(() => {
+  function handleClickOutside(event) {
+    if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+      setShowSuggestions(false);
+    }
+  }
+
+  document.addEventListener("mousedown", handleClickOutside);
+  return () => {
+    document.removeEventListener("mousedown", handleClickOutside);
+  };
+}, []);
+
 
   useEffect(() => {
     const loadUser = async () => {
@@ -54,6 +115,18 @@ function Profil() {
   if (!user) {
     return null;
   }
+  
+const handleAddAllergyFromList = async (name) => {
+  const updatedUser = await addAllergy(user._id, [name]);
+  setUser(updatedUser);
+  setNewAllergy("");
+  setSuggestions([]);
+  setShowSuggestions(false);
+};
+const handleRemoveAllergy = async (name) => {
+  const updatedUser = await removeAllergy(user._id, [name]);
+  setUser(updatedUser);
+};
 
   return (
     <div className="background">
@@ -115,24 +188,55 @@ function Profil() {
               </div>
             </div>
           </div>
+    {/* Allergies */}
+  <div className="profil-section">
+  <h2 className="section-title">🚫 Allergies et intolérances</h2>
 
-          {/* Allergies */}
-          <div className="profil-section">
-            <h2 className="section-title">🚫 Allergies et intolérances</h2>
-            {user.allergies && user.allergies.length > 0 ? (
-              <div className="allergies-list">
-                {user.allergies.map((allergy, index) => (
-                  <div key={index} className="allergy-tag">
-                    ⚠️ {allergy}
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="empty-allergies">
-                <p>Aucune allergie renseignée</p>
-              </div>
-            )}
-          </div>
+  {/* Input autosuggest */}
+<div ref={dropdownRef} className="allergy-input-wrapper">
+    <input
+      type="text"
+      className="allergy-input"
+      placeholder="Rechercher une allergie…"
+      value={newAllergy}
+      onChange={(e) => setNewAllergy(e.target.value)}
+      onFocus={() => setShowSuggestions(true)}
+    />
+
+    {showSuggestions && newAllergy.trim() && (
+      <div className="allergy-dropdown">
+        {loadingSuggestions && <div className="dropdown-item">Recherche…</div>}
+
+        {!loadingSuggestions && suggestions.map((s) => (
+          <button
+            key={s}
+            className="dropdown-item-btn"
+            onClick={() => handleAddAllergyFromList(s)}
+          >
+            {s}
+          </button>
+        ))}
+
+        {!loadingSuggestions && suggestions.length === 0 && (
+          <div className="dropdown-item">Aucun résultat</div>
+        )}
+      </div>
+    )}
+  </div>
+
+  {/* Liste des allergies */}
+  <div className="allergies-list">
+    {user.allergies?.map((a) => (
+      <div key={a} className="allergy-tag">
+        ⚠️ {a}
+        <button className="allergy-remove-btn" onClick={() => handleRemoveAllergy(a)}>
+          ❌
+        </button>
+      </div>
+    ))}
+  </div>
+</div>
+
         </div>
       </div>
     </div>

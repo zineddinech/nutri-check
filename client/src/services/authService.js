@@ -18,3 +18,29 @@ export function getConnectedUser() {
   }`;
   return fetchJson(url);
 }
+
+
+export function addAllergy(userId, allergies) {
+  const url = `${API_BASE}/api/users/${userId}/allergies`;
+
+  return fetchJson(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${localStorage.getItem("jwtToken") || ""}`,
+    },
+    body: JSON.stringify(allergies), // Ex: ["gluten"]
+  });
+}
+export function removeAllergy(userId, allergies) {
+  const url = `${API_BASE}/api/users/${userId}/allergies`;
+
+  return fetchJson(url, {
+    method: "DELETE",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${localStorage.getItem("jwtToken") || ""}`,
+    },
+    body: JSON.stringify(allergies), // Ex: ["gluten"]
+  });
+}

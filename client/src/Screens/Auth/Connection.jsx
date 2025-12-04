@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import "./../../styles/Connection.css";
 import { useNavigate } from "react-router-dom";
 
-function Conn() {
+function Connection() {
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -84,7 +84,7 @@ function Conn() {
           />
 
           <div className="actions">
-            <a href="#forgot" className="forgot">
+            <a href="/forgot-password" className="forgot">
               Mot de passe oublié ?
             </a>
           </div>
@@ -98,4 +98,4 @@ function Conn() {
   );
 }
 
-export default Conn;
+export default Connection;

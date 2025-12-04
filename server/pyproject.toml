@@ -11,6 +11,7 @@ packages = [{include = "app"}]
 python = ">=3.13"
 fastapi = ">=0.117.1,<0.118.0"
 uvicorn = ">=0.37.0,<0.38.0"
+pillow = "^11.0.0"
 sqlalchemy = ">=2.0.43,<3.0.0"
 pydantic = { extras = ["email"], version = ">=2.11.9,<3.0.0" }
 passlib = ">=1.7.4,<2.0.0"

@@ -1,0 +1,172 @@
+/* Conteneur plein écran et fond : mimic Register.css */
+.center-screen {
+  min-height: 100svh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+
+/* Background pour les pages de forms */
+.center-screen.register-bg,
+.center-screen.connection-bg {
+  background: linear-gradient(180deg, #3a3a3a 0%, #2f5a3f 100%);
+}
+
+/* Carte du formulaire (alignée avec Register) */
+.form-card {
+  width: 100%;
+  max-width: 380px;
+  color: #fff;
+  border-radius: 18px;
+  padding: 28px 20px 36px;
+  background: transparent;
+}
+
+/* Titre + form (match Register) */
+.title {
+  font-size: 34px;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: 0;
+  text-align: center;
+  margin-bottom: 34px; /* plus d'espace par défaut */
+}
+
+.form {
+  display: grid;
+  gap: 10px;
+}
+
+.label {
+  font-size: 14px;
+  text-align: left;
+  color: #ffff;
+}
+
+/* Inputs agrandis cohérents avec Register */
+.input {
+  height: 52px;
+  padding: 0 16px;
+  border-radius: 12px;
+  border: 1px solid #dcdcdc;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  background: #ffffff;
+  color: #222;
+}
+
+.input:focus {
+  border-color: #7ecf7a;
+  box-shadow: 0 0 0 3px rgba(126, 207, 122, 0.25);
+}
+
+/* Steps (pour la page de connexion on garde disponible) */
+.steps {
+  display: flex;
+  justify-content: center;
+  gap: 80px;
+  padding: 28px 0 40px;
+  width: 100%;
+}
+
+.step {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: #e8fddf;
+  color: #16be00;
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+}
+
+.step.active {
+  transform: scale(1.03);
+}
+
+/* Lien & bouton */
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 2px;
+}
+
+.forgot {
+  font-size: 13px;
+  color: #3778ff;
+  text-decoration: underline;
+}
+
+.forgot:hover {
+  text-decoration: underline;
+}
+
+.submit {
+  margin-top: 36px; /* plus d'espace comme sur Register */
+  height: 52px;
+  width: 100%;
+  border: none;
+  border-radius: 14px;
+  background: #e8fddf;
+  color: #16be00;
+  font-weight: 500;
+  font-size: 16px;
+  cursor: pointer;
+  transition: transform 0.06s, filter 0.2s;
+}
+
+.submit:hover {
+  filter: brightness(0.98);
+}
+
+.submit:active {
+  transform: translateY(1px);
+}
+
+/* ---- Compaction des champs Connexion ---- */
+:root {
+  --field-height: 36px;
+  --field-padding-y: 4px;
+  --field-padding-x: 12px;
+  --field-font-size: 14px;
+}
+
+.form .input,
+.form select.input {
+  height: var(--field-height);
+  padding: var(--field-padding-y) var(--field-padding-x);
+  font-size: var(--field-font-size);
+  line-height: calc(var(--field-height) - 2 * var(--field-padding-y));
+}
+
+.form select.input {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+}
+
+/* ---- Bloc centré pour Email + Password + Lien ---- */
+.form-stack {
+  width: 340px;
+  max-width: 100%;
+  margin: 0 auto;
+  display: grid;
+  gap: 10px;
+}
+
+/* Le lien reste dans le bloc et s'aligne à droite */
+.form-stack .actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 2px;
+}
+
+/* (Optionnel) Pour centrer aussi le bouton sur la même largeur que le bloc :
+.submit {
+  width: 340px;
+  max-width: 100%;
+  margin-left: auto;
+  margin-right: auto;
+}
+*/

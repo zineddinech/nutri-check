@@ -1,8 +1,10 @@
 from fastapi import APIRouter, HTTPException, status
-from ...services.favorite_service import FavoriteService
+
 from ...schemas.favorite import FavoriteCreate, FavoriteResponse
+from ...services.favorite_service import FavoriteService
 
 router = APIRouter()
+
 
 @router.post("/", status_code=status.HTTP_201_CREATED)
 async def add_favorite(fav: FavoriteCreate):

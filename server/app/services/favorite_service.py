@@ -1,7 +1,10 @@
 from datetime import datetime
+
 from bson import ObjectId
 from fastapi import HTTPException, status
+
 from ..database.database import get_db
+
 
 class FavoriteService:
     @staticmethod
@@ -16,7 +19,9 @@ class FavoriteService:
         if not product:
             raise HTTPException(status_code=404, detail="Produit introuvable")
 
-        existing = await db["favorites"].find_one({"user_id": user_id, "product_id": product_id})
+        existing = await db["favorites"].find_one(
+            {"user_id": user_id, "product_id": product_id}
+        )
         if existing:
             raise HTTPException(status_code=400, detail="Produit déjà dans les favoris")
 
@@ -24,14 +29,14 @@ class FavoriteService:
             "product_name": product.get("product_name"),
             "brands": product.get("brands"),
             "nutriscore_score": product.get("nutriscore_score"),
-            "ecoscore_score": product.get("ecoscore_score")
+            "ecoscore_score": product.get("ecoscore_score"),
         }
 
         fav_doc = {
             "user_id": user_id,
             "product_id": product_id,
             "product_snapshot": snapshot,
-            "created_at": datetime.utcnow().isoformat()
+            "created_at": datetime.utcnow().isoformat(),
         }
 
         result = await db["favorites"].insert_one(fav_doc)
@@ -40,7 +45,9 @@ class FavoriteService:
     @staticmethod
     async def get_user_favorites(user_id: str):
         db = get_db()
-        favorites_cursor = db["favorites"].find({"user_id": user_id}).sort("created_at", -1)
+        favorites_cursor = (
+            db["favorites"].find({"user_id": user_id}).sort("created_at", -1)
+        )
         favorites = await favorites_cursor.to_list(length=None)
         for f in favorites:
             f["_id"] = str(f["_id"])
@@ -49,5 +56,7 @@ class FavoriteService:
     @staticmethod
     async def remove_favorite(user_id: str, product_id: str) -> bool:
         db = get_db()
-        result = await db["favorites"].delete_one({"user_id": user_id, "product_id": product_id})
+        result = await db["favorites"].delete_one(
+            {"user_id": user_id, "product_id": product_id}
+        )
         return result.deleted_count == 1

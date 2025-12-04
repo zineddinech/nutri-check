@@ -1,38 +1,44 @@
 import React, { useState } from "react";
-import "./../../Screens_CSS/Connection.css";
+import "./../../styles/Connection.css";
+import { useNavigate } from "react-router-dom";
 
-function Conn() {
+function Connection() {
+  const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState(false);
 
- const handleSubmit = async (e) => {
+  const formData = new URLSearchParams();
+  formData.append("username", email.trim());
+  formData.append("password", password);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
     try {
-      // ✅ IP, port et route facilement modifiables ici
-      const BASE_URL = "http://192.168.1.100:8080";
-      const ENDPOINT = "/profile/login";
+      const BASE_URL = "http://127.0.0.1:8000";
+      const ENDPOINT = "/api/users/login";
 
       const response = await fetch(`${BASE_URL}${ENDPOINT}`, {
         method: "POST",
         headers: {
-          "Content-Type": "application/json",
+          "Content-Type": "application/x-www-form-urlencoded",
         },
-        body: JSON.stringify({
-          email: email.trim(),
-          password: password,
-        }),
+        body: formData,
       });
 
       if (!response.ok) {
+        console.log(response.body.values);
+
         throw new Error(`Erreur ${response.status} : ${response.statusText}`);
       }
 
       const data = await response.json();
 
-      // Exemple de traitement : si le champ est bon on valide on le stocke et on recharge sinon rien
-      
+      if (data) {
+        localStorage.setItem("jwtToken", data.jwt_token);
+        navigate("/produits");
+        window.location.reload();
+      }
     } catch (err) {
       console.error("Erreur lors de la requête :", err);
       setError("Erreur de connexion au serveur.");
@@ -47,10 +53,13 @@ function Conn() {
         <h1 className="title">Connexion</h1>
 
         <form className="form" onSubmit={handleSubmit}>
-          <label htmlFor="email" className="label">Email :</label>
+          <label htmlFor="email" className="label">
+            Email :
+          </label>
           <input
             id="email"
             type="email"
+            name="username"
             className="input"
             placeholder="exemple@domaine.com"
             value={email}
@@ -59,9 +68,12 @@ function Conn() {
             required
           />
 
-          <label htmlFor="password" className="label">Mot de passe :</label>
+          <label htmlFor="password" className="label">
+            Mot de passe :
+          </label>
           <input
             id="password"
+            name="password"
             type="password"
             className="input"
             placeholder="••••••••"
@@ -72,15 +84,18 @@ function Conn() {
           />
 
           <div className="actions">
-            <a href="#forgot" className="forgot">Mot de passe oublié ?</a>
+            <a href="/forgot-password" className="forgot">
+              Mot de passe oublié ?
+            </a>
           </div>
 
           <button type="submit" className="submit" disabled={loading}>
-            {loading ? "Connexion..." : "Se connecter"}</button>
+            {loading ? "Connexion..." : "Se connecter"}
+          </button>
         </form>
       </div>
     </div>
   );
 }
 
-export default Conn;
+export default Connection;

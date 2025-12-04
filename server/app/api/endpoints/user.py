@@ -1,9 +1,11 @@
+from datetime import datetime, timedelta
 from typing import List
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
 from fastapi.security import OAuth2PasswordRequestForm
 
 from app.schemas.user import Token
+
 
 from ...schemas.user import UserCreate, UserResponse, UserUpdate
 from ...services.user_service import UserService
@@ -22,7 +24,8 @@ async def create_user(user_data: UserCreate):
         user = await UserService.create_user(user_data)
         return user
     except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
 @router.post("/login", response_model=Token)
@@ -134,6 +137,17 @@ async def remove_allergies_from_user(user_id: str, allergies: List[str] = Body(.
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Utilisateur non trouvé"
         )
+    return user
+
+
+@router.post("/{user_id}/favorites/{product_id}", response_model=UserResponse)
+async def add_favorite(user_id: str, product_id: str):
+    """
+    Ajoute un produit aux favoris de l’utilisateur
+    """
+    user = await UserService.add_favorite(user_id, product_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="Utilisateur non trouvé")
     return user
 
 

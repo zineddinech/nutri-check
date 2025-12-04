@@ -1,6 +1,8 @@
-from pydantic import BaseModel, Field
-from typing import List
 from datetime import datetime
+from typing import List
+
+from pydantic import BaseModel, Field
+
 
 class ShoppingTripItem(BaseModel):
     product_id: str

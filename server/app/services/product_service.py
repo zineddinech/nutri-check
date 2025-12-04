@@ -1,5 +1,6 @@
 from typing import List
 
+from bson import ObjectId
 from pymongo import ASCENDING, DESCENDING
 
 from ..database.database import get_db
@@ -7,33 +8,57 @@ from ..database.database import get_db
 
 class ProductService:
     @staticmethod
-    async def search_products(query: str, page: int, page_size: int) -> List[dict]:
+    async def search_products(
+        query: str, page: int, page_size: int, user_allergens: List[str] | None = None
+    ) -> List[dict]:
         """
-        Recherche des produits dans la collection locale MongoDB.
+        Recherche des produits optionnellement filtrés dans la collection locale MongoDB.
         """
         db = get_db()
         skip = (page - 1) * page_size
+
         # Utilise une recherche de texte simple sur le nom du produit.
-        products_cursor = (
-            db["products"]
-            .find({"product_name": {"$regex": query, "$options": "i"}})
-            .skip(skip)
-            .limit(page_size)
-        )
+        filter_query = {"product_name": {"$regex": query, "$options": "i"}}
+
+        # Filtre optionnel sur les allergens
+        if user_allergens:
+            # FIXME: solution temporaire
+            expanded_allergens = []
+            for a in user_allergens:
+                # Normaliser en minuscules pour matcher les produits
+                a_lower = a.lower()
+                expanded_allergens.append(a_lower)
+                expanded_allergens.append(f"en:{a_lower}")
+            filter_query["allergens"] = {"$not": {"$in": expanded_allergens}}
+
+        products_cursor = db["products"].find(filter_query).skip(skip).limit(page_size)
 
         products = await products_cursor.to_list(length=page_size)
         return products
 
     @staticmethod
     async def get_products_sorted(
-        sort_by: str, page: int, page_size: int
+        sort_by: str, page: int, page_size: int, user_allergens: List[str] | None = None
     ) -> List[dict]:
         """
-        Récupère les produits triés et paginés depuis MongoDB.
+        Récupère les produits triés, paginés et optionnellement filtrés depuis MongoDB.
         Le tri est basé sur la chaîne sort_by (ex: 'product_name_asc', 'nutriscore_score_desc').
         """
         db = get_db()
         skip = (page - 1) * page_size
+
+        filter_query = {"product_name": {"$exists": True, "$nin": [None, ""]}}
+
+        # Filtre optionnel sur les allergens
+        if user_allergens:
+            # FIXME: solution temporaire
+            expanded_allergens = []
+            for a in user_allergens:
+                # Normaliser en minuscules pour matcher les produits
+                a_lower = a.lower()
+                expanded_allergens.append(a_lower)
+                expanded_allergens.append(f"en:{a_lower}")
+            filter_query["allergens"] = {"$not": {"$in": expanded_allergens}}
 
         # Analyser la condition de tri (sort_by)
         try:
@@ -65,11 +90,21 @@ class ProductService:
         sort_criteria = [(field, order)]
 
         # Exécuter la requête
-        # Nous utilisons find({}) pour récupérer tous les documents,
-        # car ce point de terminaison n'implique pas de recherche par terme.
         products_cursor = (
-            db["products"].find({}).sort(sort_criteria).skip(skip).limit(page_size)
+            db["products"]
+            .find(filter_query)
+            .sort(sort_criteria)
+            .skip(skip)
+            .limit(page_size)
         )
-
         products = await products_cursor.to_list(length=page_size)
         return products
+
+    @staticmethod
+    async def get_product_by_id(product_id: str) -> dict:
+        """
+        Récupère un produit par son ID depuis MongoDB.
+        """
+        db = get_db()
+        product = await db["products"].find_one({"_id": product_id})
+        return product

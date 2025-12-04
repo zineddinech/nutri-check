@@ -1,8 +1,9 @@
-from typing import List
+from typing import List, Optional
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Header, Query
 
 from ...schemas.product import ProductResponse
+from ...services.auth_service import get_current_user
 from ...services.product_service import ProductService
 
 router = APIRouter()
@@ -15,12 +16,25 @@ async def search_local_products(
     page_size: int = Query(
         100, ge=1, le=1000, description="Nombre de résultats par page"
     ),
+    authorization: Optional[str] = Header(None),
 ):
     """
-    Ce point de terminaison recherche les produits
-    dans la base de données MongoDB locale.
+    Ce point de terminaison recherche les produits dans la base de données MongoDB locale
+    et filtre optionnellement sur les allergies de l'utilisateur.
     """
-    products = await ProductService.search_products(query, page, page_size)
+    user_allergens = None
+
+    if authorization:
+        try:
+            token = authorization.replace("Bearer ", "")
+            user = await get_current_user(token)
+            user_allergens = user.allergies or None
+        except Exception:
+            pass
+
+    products = await ProductService.search_products(
+        query, page, page_size, user_allergens
+    )
     return products
 
 
@@ -34,11 +48,36 @@ async def get_products_by_index(
     page_size: int = Query(
         100, ge=1, le=1000, description="Nombre de résultats par page"
     ),
+    authorization: Optional[str] = Header(None),
 ):
     """
-    Ce point de terminaison récupère les produits triés par une condition donnée.
+    Ce point de terminaison récupère les produits triés par une condition donnée
+    et filtre optionnellement sur les allergies de l'utilisateur.
     """
+    user_allergens = None
+
+    if authorization:
+        try:
+            token = authorization.replace("Bearer ", "")
+            user = await get_current_user(token)
+            user_allergens = user.allergies or None
+        except Exception:
+            pass
+
     products = await ProductService.get_products_sorted(
-        sort_by=sort_by, page=page, page_size=page_size
+        sort_by, page, page_size, user_allergens
     )
     return products
+
+
+@router.get("/getById/{product_id}", response_model=ProductResponse)
+async def get_product_by_id(
+    product_id: str,
+):
+    """
+    Ce point de terminaison récupère un produit par son ID.
+    """
+    product = await ProductService.get_product_by_id(product_id)
+    if product:
+        return product
+    return None

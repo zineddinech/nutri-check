@@ -1,9 +1,14 @@
 from datetime import datetime, timedelta, timezone
+
+import random
+import string
 from typing import List, Optional
 
 import jwt
 from bson import ObjectId
 from passlib.context import CryptContext
+
+from utils.email import send_reset_email
 
 from ..core.config import (ACCESS_TOKEN_EXPIRE_MINUTES, JWT_ALGORITHM,
                            JWT_SECRET_KEY)
@@ -25,15 +30,13 @@ class UserService:
         else:
             expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
         to_encode.update({"exp": expire})
-        encoded_jwt = jwt.encode(
-            to_encode, JWT_SECRET_KEY, algorithm=JWT_ALGORITHM)
+        encoded_jwt = jwt.encode(to_encode, JWT_SECRET_KEY, algorithm=JWT_ALGORITHM)
         return encoded_jwt
 
     @staticmethod
     def decode_access_token(token: str) -> Optional[dict]:
         try:
-            payload = jwt.decode(token, JWT_SECRET_KEY,
-                                 algorithms=[JWT_ALGORITHM])
+            payload = jwt.decode(token, JWT_SECRET_KEY, algorithms=[JWT_ALGORITHM])
             return payload
         except jwt.ExpiredSignatureError:
             return None
@@ -44,21 +47,18 @@ class UserService:
     def hash_password(password: str) -> str:
         if not password:
             raise ValueError("Password cannot be empty")
-        password = password.encode(
-            "utf-8")[:72].decode("utf-8", errors="ignore")
+        password = password.encode("utf-8")[:72].decode("utf-8", errors="ignore")
         return pwd_context.hash(password)
 
     @staticmethod
     def verify_password(plain_password: str, hashed_password: str) -> bool:
-        truncated = plain_password.encode(
-            "utf-8")[:72].decode("utf-8", errors="ignore")
+        truncated = plain_password.encode("utf-8")[:72].decode("utf-8", errors="ignore")
         return pwd_context.verify(truncated, hashed_password)
 
     @staticmethod
     async def create_user(user_data: UserCreate) -> UserResponse:
         db = get_db()
         hashed_pw = UserService.hash_password(user_data.password)
-        print(hashed_pw)
         user = {
             "email": user_data.email,
             "username": user_data.username,
@@ -68,6 +68,7 @@ class UserService:
             "is_active": True,
             "created_at": datetime.now(timezone.utc).isoformat(),
             "updated_at": None,
+            "allergies": [],
         }
 
         result = await db["users"].insert_one(user)
@@ -117,8 +118,7 @@ class UserService:
         user_id: str, user_data: UserUpdate
     ) -> Optional[UserResponse]:
         db = get_db()
-        update_data = {k: v for k, v in user_data.dict().items()
-                       if v is not None}
+        update_data = {k: v for k, v in user_data.dict().items() if v is not None}
         update_data["updated_at"] = datetime.now(timezone.utc).isoformat()
 
         await db["users"].update_one({"_id": ObjectId(user_id)}, {"$set": update_data})
@@ -144,7 +144,8 @@ class UserService:
         ):
             return None
         access_token = UserService.create_access_token(
-            data={"id": str(user["_id"])})
+            data={"email": str(user["email"])}
+        )
         return access_token
 
     @staticmethod
@@ -194,7 +195,64 @@ class UserService:
         user["allergies"] = updated
         user["_id"] = str(user["_id"])
         return UserResponse(**user)
-    
-   
 
-    
+    @staticmethod
+    def generate_reset_code(length: int = 6) -> str:
+        return ''.join(random.choices(string.digits, k=length))
+
+    @staticmethod
+    async def request_password_reset(email: str) -> bool:
+        db = get_db()
+
+        user = await db["users"].find_one({"email": email})
+        if not user:
+            return False
+
+        code = UserService.generate_reset_code()
+        expires = datetime.now(timezone.utc) + timedelta(minutes=15)
+
+        await db["users"].update_one(
+            {"email": email},
+            {"$set": {
+                "reset_code": code,
+                "reset_expires": expires.isoformat(),
+            }}
+        )
+        send_reset_email(email, code)
+
+        return True
+
+    @staticmethod
+    async def reset_password(email: str, code: str, new_password: str) -> bool:
+        db = get_db()
+
+        user = await db["users"].find_one({"email": email})
+        if not user:
+            return False
+
+        if "reset_code" not in user or "reset_expires" not in user:
+            return False
+
+        if user["reset_code"] != code:
+            return False
+
+        if datetime.now(timezone.utc) > datetime.fromisoformat(user["reset_expires"]):
+            return False
+
+        new_hashed = UserService.hash_password(new_password)
+
+        await db["users"].update_one(
+            {"email": email},
+            {
+                "$set": {
+                    "hashed_password": new_hashed,
+                    "updated_at": datetime.now(timezone.utc).isoformat()
+                },
+                "$unset": {
+                    "reset_code": "",
+                    "reset_expires": ""
+                }
+            }
+        )
+
+        return True

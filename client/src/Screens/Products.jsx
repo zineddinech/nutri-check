@@ -333,7 +333,7 @@ function Products() {
                 const code = product.code ?? product._id ?? product.id;
                 const name = product.product_name ?? product.name ?? "—";
                 const nutri =
-                  product.nutriscore_score ?? product.nutriscore ?? "—";
+                  product.nutriscore_score ?? product.nutrition_grade_fr ?? "—";
                 const compatibility =
                   product.compatibility ?? product.compatibility_score ?? 0;
                 const isFavorite = favorites.has(code);

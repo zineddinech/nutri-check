@@ -1,0 +1,196 @@
+name: Client CI
+
+on:
+  # Déclenche le workflow sur les événements de push et de pull request
+  push:
+    branches:
+      - main # Remplacez par votre branche par défaut si elle est différente
+    paths:
+      - 'client/**'
+      - '.github/workflows/client.yml'
+  pull_request:
+    paths:
+      - 'client/**'
+      - '.github/workflows/client.yml'
+
+jobs:
+
+  lint_client:
+    name: Lint Client
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4 # Étape pour cloner le dépôt
+
+      - name: Configuration de Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Restauration du Cache Node Modules
+        # Utilise le cache GitHub Actions pour accélérer npm install
+        uses: actions/cache@v4
+        with:
+          path: client/node_modules
+          key: ${{ runner.os }}-node-modules-${{ hashFiles('client/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-modules-
+
+      - name: Installation des Dépendances
+        working-directory: client
+        run: npm install
+
+      - name: Exécution du Lint
+        # 'continue-on-error: true' correspond à 'allow_failure: true' de GitLab
+        continue-on-error: true
+        working-directory: client
+        run: npm run lint
+
+  # ---
+
+  build_client:
+    name: Build Client
+    runs-on: ubuntu-latest
+    needs: lint_client # Dépend du job de lint
+    if: always()
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configuration de Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Restauration du Cache Node Modules
+        uses: actions/cache@v4
+        with:
+          path: client/node_modules
+          key: ${{ runner.os }}-node-modules-${{ hashFiles('client/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-modules-
+
+      - name: Installation des Dépendances
+        working-directory: client
+        run: npm install
+
+      - name: Construction pour la Production
+        working-directory: client
+        run: |
+          echo "Construction du client pour la production..."
+          npm run build
+
+      - name: Téléchargement de l'Artefact de Build
+        # Sauvegarde le répertoire dist/ en tant qu'artefact pour les jobs suivants
+        uses: actions/upload-artifact@v4
+        with:
+          name: client-dist
+          path: client/dist/
+          retention-days: 1 # L'artefact expire après 1 jour
+
+  # ---
+
+  test_client:
+    name: Test Client
+    runs-on: ubuntu-latest
+    needs: build_client # Dépend de la construction (pour les dépendances et le code)
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configuration de Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Restauration du Cache Node Modules
+        uses: actions/cache@v4
+        with:
+          path: client/node_modules
+          key: ${{ runner.os }}-node-modules-${{ hashFiles('client/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-modules-
+
+      - name: Installation des Dépendances
+        working-directory: client
+        run: npm install
+
+      - name: Exécution des Tests Unitaires
+        working-directory: client
+        run: npm run test -- --run
+
+  # ---
+
+  preview_client:
+    name: Smoke Test Client (Optionnel)
+    runs-on: ubuntu-latest
+    needs: build_client
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configuration de Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Restauration du Cache Node Modules
+        uses: actions/cache@v4
+        with:
+          path: client/node_modules
+          key: ${{ runner.os }}-node-modules-${{ hashFiles('client/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-modules-
+
+      - name: Installation des Dépendances
+        working-directory: client
+        run: npm install
+
+      - name: Téléchargement de l'Artefact de Build
+        # Récupère le répertoire dist/ pour le test de prévisualisation
+        uses: actions/download-artifact@v4
+        with:
+          name: client-dist
+          path: client/dist/
+
+      - name: Exécution du Smoke Test
+        working-directory: client
+        run: |
+          # Installe curl, démarre le serveur de prévisualisation et vérifie la disponibilité
+          sudo apt-get update -y && sudo apt-get install -y curl
+          npm run preview &
+          sleep 5
+          curl http://localhost:4173
+
+  # ---
+
+  deploy_client:
+    name: Deploy Client
+    runs-on: ubuntu-latest
+    # Le job ne s'exécute que sur un push vers la branche par défaut (main)
+    if: github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+    needs:
+      - test_client
+      - preview_client
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configuration de Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Déploiement Docker (Construire et Pousser)
+        env:
+          # Utilise les secrets de GitHub pour les identifiants Docker Hub
+          DOCKER_USERNAME: ${{ secrets.DOCKER_HUB_USER }}
+          DOCKER_PASSWORD: ${{ secrets.DOCKER_HUB_TOKEN }}
+          CLIENT_APP_NAME: ${{ secrets.CLIENT_APP_NAME }}
+        run: |
+          # 1. Connexion à Docker Hub
+          echo "${DOCKER_PASSWORD}" | docker login -u "${DOCKER_USERNAME}" --password-stdin
+          
+          # 2. Lecture de la version depuis package.json
+          APP_VERSION=v$(awk -F'"' '/"version":/ {print $4}' client/package.json)
+          IMAGE_TAG="${DOCKER_USERNAME}/${CLIENT_APP_NAME}:${APP_VERSION}"
+          
+          echo "Déploiement du client version ${IMAGE_TAG}..."
+          
+          # 3. Construction et Push de l'image
+          # (Nécessite que le Dockerfile client/Dockerfile soit configuré pour copier l'artefact dist/)
+          docker build -t "$IMAGE_TAG" client/ 
+          docker push "$IMAGE_TAG"

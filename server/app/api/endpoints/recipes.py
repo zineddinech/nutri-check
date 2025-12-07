@@ -52,7 +52,7 @@ async def analyze_recipe(request: RecipeRequest):
     """
     try:
         prompt = f"""
-Analyse cette recette et retourne un JSON avec la structure suivante:
+Crée cette recette avec des produits de supermarché et retourne un JSON avec la structure suivante:
 {{
   "recipeName": "Nom de la recette",
   "totalCalories": nombre total de calories,

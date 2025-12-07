@@ -338,7 +338,7 @@ function Products() {
                   product.compatibility ?? product.compatibility_score ?? 0;
                 const isFavorite = favorites.has(code);
 
-                const imageUrl = getLocalImage(code);
+                const imageUrl = code ? getLocalImage(code) : null;
 
                 return (
                   <div
@@ -361,15 +361,19 @@ function Products() {
                     </div>
 
                     <div className="product-image-container">
-                      <img
-                        src={imageUrl}
-                        alt={name}
-                        className="product-image visible"
-                        loading="lazy"
-                        onError={(e) => {
-                          e.target.src = DEFAULT_IMAGE;
-                        }}
-                      />
+                      {!imageUrl ? (
+                        <div className="image-skeleton"></div>
+                      ) : (
+                        <img
+                          src={imageUrl}
+                          alt={name}
+                          className="product-image visible"
+                          loading="lazy"
+                          onError={(e) => {
+                            e.target.src = DEFAULT_IMAGE;
+                          }}
+                        />
+                      )}
                     </div>
 
                     <div className="product-title">{name}</div>

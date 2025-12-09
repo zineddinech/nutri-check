@@ -9,6 +9,7 @@ on:
   pull_request:
   push:
     branches:
+      - 'feat/**'
       - dev
       - main
 

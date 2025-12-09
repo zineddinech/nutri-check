@@ -225,6 +225,7 @@ jobs:
         run: |
           # Exécute les tests et génère un rapport JUnit
           . .venv/bin/activate
+          export PYTHONPATH="$PWD/.."
           poetry run pytest --junitxml=test-report.xml
 
       - name: Téléchargement du Rapport de Test (JUnit)

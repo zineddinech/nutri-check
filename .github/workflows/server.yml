@@ -133,8 +133,9 @@ jobs:
             ${{ runner.os }}-poetry-
 
       - name: Création de virtualenv et installation des dépendances
+        working-directory: server
         run: |
-          if [ ! -d "server/.venv" ]; then
+          if [ ! -d ".venv" ]; then
             echo "Cache manqué. Création du venv et installation des dépendances..."
             poetry config virtualenvs.in-project true
             poetry install --no-interaction --no-ansi

@@ -5,6 +5,8 @@ on:
   push:
     branches:
       - main # Remplacez par votre branche par défaut si elle est différente
+      - 'feat/**'
+      - dev
     paths:
       - 'client/**'
       - '.github/workflows/client.yml'

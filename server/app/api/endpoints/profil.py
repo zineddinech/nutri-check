@@ -35,3 +35,16 @@ async def get_diet_restrictions(
     """
     results = await ProfilService.get_diet_restrictions_by_name(query)
     return results
+
+# ----------------------- Countries endpoint -----------------------
+@router.get("/getCountriesByName", response_model=List[str])
+async def get_countries_by_name(
+    query: Optional[str] = Query(None, description="Partial country name")
+):
+    """
+    Retourne la liste des pays filtrés par query (partial match).
+    Si query est vide, retourne tous les allergènes.
+    """
+    results = await ProfilService.get_countries_by_name(query)
+    return results
+

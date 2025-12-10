@@ -30,12 +30,14 @@ class UserUpdate(BaseModel):
     last_name: Optional[str] = None
     is_active: Optional[bool] = None
     allergies: Optional[List[str]] = None
+    countries: Optional[List[str]] = None
 
 
 class UserResponse(UserBase):
     id: Optional[str] = Field(alias="_id", default=None)
     is_active: bool = True
     allergies: List[str] = []
+    countries: List[str] = []
     created_at: Optional[datetime] = None  # ✅ accepte un datetime
     updated_at: Optional[datetime] = None  # ✅ idem
 

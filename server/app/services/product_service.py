@@ -9,7 +9,11 @@ from ..database.database import get_db
 class ProductService:
     @staticmethod
     async def search_products(
-        query: str, page: int, page_size: int, user_allergens: List[str] | None = None
+        query: str, 
+        page: int, 
+        page_size: int, 
+        user_allergens: List[str] | None = None,
+        user_countries: List[str] | None = None
     ) -> List[dict]:
         """
         Recherche des produits optionnellement filtrés dans la collection locale MongoDB.
@@ -22,7 +26,7 @@ class ProductService:
 
         # Filtre optionnel sur les allergens
         if user_allergens:
-            # FIXME: solution temporaire
+            # FIXME: solution temporaire car le format des allergens peut varier dans la db actuellement
             expanded_allergens = []
             for a in user_allergens:
                 # Normaliser en minuscules pour matcher les produits
@@ -30,6 +34,11 @@ class ProductService:
                 expanded_allergens.append(a_lower)
                 expanded_allergens.append(f"en:{a_lower}")
             filter_query["allergens"] = {"$not": {"$in": expanded_allergens}}
+        
+        # Filtre optionnel sur les pays
+        if user_countries:
+            # FIXME: attention,  le format des pays peut varier dans la db actuellement
+            filter_query["countries"] = {"$in": user_countries}
 
         products_cursor = db["products"].find(filter_query).skip(skip).limit(page_size)
 
@@ -38,7 +47,11 @@ class ProductService:
 
     @staticmethod
     async def get_products_sorted(
-        sort_by: str, page: int, page_size: int, user_allergens: List[str] | None = None
+        sort_by: str, 
+        page: int, 
+        page_size: int, 
+        user_allergens: List[str] | None = None,
+        user_countries: List[str] | None = None
     ) -> List[dict]:
         """
         Récupère les produits triés, paginés et optionnellement filtrés depuis MongoDB.
@@ -51,7 +64,7 @@ class ProductService:
 
         # Filtre optionnel sur les allergens
         if user_allergens:
-            # FIXME: solution temporaire
+            # FIXME: solution temporaire car le format des allergens peut varier dans la db actuellement
             expanded_allergens = []
             for a in user_allergens:
                 # Normaliser en minuscules pour matcher les produits
@@ -59,6 +72,11 @@ class ProductService:
                 expanded_allergens.append(a_lower)
                 expanded_allergens.append(f"en:{a_lower}")
             filter_query["allergens"] = {"$not": {"$in": expanded_allergens}}
+        
+        # Filtre optionnel sur les pays
+        if user_countries:
+            # FIXME: attention,  le format des pays peut varier dans la db actuellement
+            filter_query["countries"] = {"$in": user_countries}
 
         # Analyser la condition de tri (sort_by)
         try:

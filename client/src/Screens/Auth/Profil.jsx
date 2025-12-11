@@ -3,6 +3,15 @@ import { useNavigate } from "react-router-dom";
 import "../../styles/Profil.css";
 import "../../styles/Background.css";
 import { getConnectedUser,addAllergy, removeAllergy } from "../../services/authService";
+import translations from "../../translations/translations.json";
+
+const CURRENT_LOCALE = "fr";
+
+const t = (englishName) => {
+  return translations[CURRENT_LOCALE]?.[englishName] || englishName;
+};
+
+const translateAllergy = (englishName) => t(englishName);
 
 function Profil() {
   const navigate = useNavigate();
@@ -209,7 +218,7 @@ const handleRemoveAllergy = async (name) => {
             className="dropdown-item-btn"
             onClick={() => handleAddAllergyFromList(s)}
           >
-            {s}
+            {translateAllergy(s)}
           </button>
         ))}
 
@@ -222,10 +231,13 @@ const handleRemoveAllergy = async (name) => {
 
   {/* Liste des allergies */}
   <div className="allergies-list">
-    {user.allergies?.map((a) => (
+  {user.allergies?.map((a) => (
       <div key={a} className="allergy-tag">
-        ⚠️ {a}
-        <button className="allergy-remove-btn" onClick={() => handleRemoveAllergy(a)}>
+        ⚠️ {translateAllergy(a)}
+        <button
+          className="allergy-remove-btn"
+          onClick={() => handleRemoveAllergy(a)}
+        >
           ❌
         </button>
       </div>

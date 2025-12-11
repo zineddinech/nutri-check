@@ -1,7 +1,16 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import translations from "../../../translations/translations.json";
 
 const BASE_URL = "http://localhost:8000";
 const ENDPOINT_ALLERGIES = "/api/profil/getAllergiesByName"; // ?query=...
+
+const CURRENT_LOCALE = "fr";
+
+const t = (englishName) => {
+  return translations[CURRENT_LOCALE]?.[englishName] || englishName;
+};
+
+const translateAllergy = (englishName) => t(englishName);
 
 // Thème inline
 const TEXT = "#111";
@@ -247,7 +256,7 @@ function RestrictionRow({
                     }}
                     onMouseDown={(e) => e.preventDefault()}
                   >
-                    {s}
+                    {translateAllergy(s)}
                   </button>
                 ))}
               </div>

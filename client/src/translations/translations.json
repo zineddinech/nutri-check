@@ -1,0 +1,32 @@
+{
+  "fr": {
+    "Chicken": "Poulet",
+    "Pork": "Porc",
+
+    "Crustaceans": "Crustacés",
+    "Gelatin": "Gélatine",
+    "Banana": "Banane",
+    "Eggs": "Œufs",
+    "Beef": "Bœuf",
+    "Milk": "Lait",
+    "Gluten": "Gluten",
+    "Fish": "Poisson",
+    "Mustard": "Moutarde",
+    "Peach": "Pêche",
+    "Kiwi": "Kiwi",
+    "Sesame seeds": "Graines de sésame",
+    "Soybeans": "Soja",
+    "Apple": "Pomme",
+    "Molluscs": "Mollusques",
+    "Nuts": "Fruits à coque",
+    "Peanuts": "Arachides",
+    "Celery": "Céleri",
+    "Sulphur dioxide and sulphites": "Anhydride sulfureux et sulfites",
+    "Orange": "Orange",
+    "Red caviar": "Œufs de saumon",
+    "Lupin": "Lupin",
+    "None": "Aucun",
+    "Matsutake": "Matsutake",
+    "Yamaimo": "Igname (Yamaimo)"
+  }
+}

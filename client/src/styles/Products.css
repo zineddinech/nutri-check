@@ -10,23 +10,25 @@
 
 /* ==================== TOOLBAR FIXE ==================== */
 .products-toolbar {
-  position: fixed;
-  top: 70px;
-  left: 0;
-  right: 0;
-  z-index: 999;
+  /* --- Positionnement --- */
+  position: fixed;  /* Indispensable pour survoler le contenu */
+  top: 70px;        /* Hauteur sous votre header (ajustez si besoin) */
+  left: 0;          /* Force le collage au bord gauche de l'écran */
+  width: 100%;      /* Force la largeur totale de l'écran */
+  z-index: 999;     /* Reste au-dessus des produits */
   
+  /* --- Mise en page interne --- */
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 16px;
   padding: 16px 24px;
+  box-sizing: border-box; /* Important : inclut le padding dans les 100% */
   
+  /* --- Design --- */
   backdrop-filter: blur(10px);
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
   border-bottom: 1px solid rgba(0, 0, 0, 0.06);
-  
-  max-width: 100vw;
+  /*background: rgba(255, 255, 255, 0.85);  Fond légèrement transparent */
 }
 
 /* ==================== TOOLBAR LEFT ==================== */
@@ -89,8 +91,18 @@
   display: flex;
   gap: 10px;
   align-items: center;
-  flex: 1;
-  max-width: 500px;
+  
+  /* MODIFICATIONS ICI */
+  /* On enlève flex: 1 qui la rendait dépendante des autres */
+  /* flex: 1;  <-- SUPPRIMER CETTE LIGNE */
+  
+  position: absolute;       /* Sort du flux normal */
+  left: 50%;               /* Pousse le bord gauche à 50% du parent */
+  transform: translateX(-50%); /* Recule de 50% de sa propre largeur pour se centrer parfaitement */
+  
+  width: 100%;             /* S'assure qu'elle a de la place */
+  max-width: 500px;        /* Garde votre limite de largeur */
+  justify-content: center; /* Centre le contenu interne */
 }
 
 .search-input {
@@ -306,10 +318,11 @@
   width: 90%;
 }
 
+
 .product-image-container {
   position: relative;
   width: 100%;
-  height: 150px;
+  height: 220px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -322,7 +335,29 @@
   width: 100%;
   height: 100%;
   object-fit: contain;
-  transition: opacity 0.3s ease;
+  opacity: 0;
+  transition: opacity 0.5s ease;
+  z-index: 1;
+}
+
+.no-image-placeholder {
+  width: 100%;
+  height: 100%;
+  background-color: #f0f0f0; 
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: #a0a0a0;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.no-image-icon {
+  font-size: 40px;
+  margin-bottom: 8px;
+  opacity: 0.5;
 }
 
 .product-image.loading {
@@ -455,7 +490,16 @@
   }
   
   .search-bar {
+    /* On annule le centrage absolu pour revenir au mode empilé du mobile */
+    position: static; 
+    transform: none;
+    left: auto;
+    
+    /* Vos règles existantes pour le mobile */
     order: 1;
+    flex: 1 1 100%;
+    max-width: 100%;
+    margin-bottom: 10px; /* Petit ajout esthétique si besoin */
   }
   
   .toolbar-left {

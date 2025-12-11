@@ -6,6 +6,45 @@ import { getConnectedUser } from "../services/authService";
 import { getUserFavorites, removeFavorite } from "../services/favoritesService";
 import { getProductById } from "../services/productService";
 
+const ImageWithLoader = ({ src, alt, fallbackIcon }) => {
+  const [isLoaded, setIsLoaded] = useState(false);
+  const [hasError, setHasError] = useState(false);
+
+  
+  if (!src) {
+    return (
+      <div className="no-image-placeholder">
+        <span className="no-image-icon">📷</span>
+        <span>Pas d'image</span>
+      </div>
+    );
+  }
+
+  if (hasError) {
+    return (
+      <div className="no-image-placeholder">
+        <span className="no-image-icon">📷</span>
+        <span>Pas d'image</span>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      {!isLoaded && <div className="image-skeleton"></div>}
+
+      <img
+        src={src}
+        alt={alt}
+        className={`product-image ${isLoaded ? "visible" : ""}`}
+        loading="lazy"
+        onLoad={() => setIsLoaded(true)}
+        onError={() => setHasError(true)} 
+      />
+    </>
+  );
+};
+
 function Favorites() {
   const navigate = useNavigate();
   const [favorites, setFavorites] = useState([]);
@@ -101,7 +140,7 @@ function Favorites() {
   };
 
   return (
-    <div className="favorites-container background">
+    <div className="favorites-container">
       <div className="favorites-wrapper">
         {/* En-tête */}
         <div className="favorites-header">
@@ -173,10 +212,21 @@ function Favorites() {
                   key={fav._id || productId}
                   onClick={() => handleProductClick(productId)}
                 >
-                  <div className="card-header">
-                    <div className="favorite-badge">❤️</div>
+                  <div className="card-floating-header">
+      
+                    {/* 1. NutriScore à Gauche */}
+                    <div className="floating-score" title={`Nutri-Score ${nutri}`}>
+                      {nutri}
+                    </div>
+
+                    {/* 2. Cœur au Centre */}
+                    <div className="floating-heart">
+                      ❤️
+                    </div>
+
+                    {/* 3. Croix à Droite */}
                     <button
-                      className="remove-button"
+                      className="floating-remove"
                       onClick={(e) => handleRemoveFavorite(e, productId)}
                       title="Retirer des favoris"
                     >
@@ -184,43 +234,30 @@ function Favorites() {
                     </button>
                   </div>
 
-                  <div className="card-image">
-                    {imageUrl ? (
-                      <img
-                        src={imageUrl}
-                        alt={name}
-                        loading="lazy"
-                        onError={(e) => {
-                          e.target.src = DEFAULT_IMAGE;
-                        }}
+                  <div className="product-image-container">
+                      <ImageWithLoader 
+                        src={imageUrl} 
+                        alt={name} 
                       />
-                    ) : (
-                      <div className="image-placeholder">No image</div>
-                    )}
-                  </div>
+                    </div>
 
                   <div className="card-content">
-                    <h3 className="product-name">{name}</h3>
-
+                    <h3 className="product-title">{name}</h3>
+                    
                     {product.brands && (
                       <p className="product-brand">{product.brands}</p>
                     )}
 
-                    <div className="card-meta">
-                      <span className="nutriscore-badge">
-                        Nutri-Score: {nutri}
-                      </span>
-                      {compatibility > 0 && (
-                        <span className="compatibility-badge">
-                          {compatibility}% compatible
-                        </span>
-                      )}
-                    </div>
+                    {/* On garde la compatibilité en bas si besoin, mais on a enlevé le nutriscore d'ici car il est en haut */}
+                    {compatibility > 0 && (
+                      <div className="compatibility" style={{marginTop: '10px'}}>
+                        {compatibility}% compatible
+                      </div>
+                    )}
 
                     {fav.created_at && (
                       <p className="favorite-date">
-                        Ajouté le{" "}
-                        {new Date(fav.created_at).toLocaleDateString("fr-FR")}
+                        Ajouté le {new Date(fav.created_at).toLocaleDateString("fr-FR")}
                       </p>
                     )}
                   </div>

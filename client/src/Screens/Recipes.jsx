@@ -141,7 +141,7 @@ function Recipes() {
   };
 
   return (
-    <div className="recipes-container background">
+    <div className="recipes-container">
       <div className="recipes-wrapper">
         {/* En-tête */}
         <div className="recipes-header">

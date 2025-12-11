@@ -69,6 +69,13 @@ function Navbar() {
         >
           Mes favoris
         </NavLink>
+
+        <NavLink
+          to="/recipes"
+          className={({ isActive }) => "nav-link" + (isActive ? " active" : "")}
+        >
+          Recettes
+        </NavLink>
       </div>
 
       <div className="nav-right">

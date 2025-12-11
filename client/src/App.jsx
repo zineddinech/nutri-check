@@ -10,6 +10,7 @@ import Favorites from "./Screens/favorites";
 import Profil from "./Screens/Auth/Profil";
 import ForgotPassword from "./Screens/Auth/ForgotPassword";
 import ResetPassword from "./Screens/Auth/ResetPassword";
+import Recipes from "./Screens/Recipes";
 
 function App() {
   return (
@@ -26,6 +27,7 @@ function App() {
           <Route path="/produits/:id" element={<ProductDetail />} />
           <Route path="/favorites" element={<Favorites />} />
           <Route path="/Profil" element={<Profil />} />
+          <Route path="/Recipes" element={<Recipes />} />
         </Routes>
       </Router>
     </div>

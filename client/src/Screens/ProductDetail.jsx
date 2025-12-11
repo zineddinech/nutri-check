@@ -69,6 +69,7 @@ function ProductDetail() {
   const [error, setError] = useState(null);
   const [imageLoaded, setImageLoaded] = useState(false);
 
+  const defaultCenter = [48.8566, 2.3522];
   // 1) Charger le produit (backend Nutri-Check)
   useEffect(() => {
     let cancelled = false;

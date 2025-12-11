@@ -23,17 +23,19 @@ async def search_local_products(
     et filtre optionnellement sur les allergies de l'utilisateur.
     """
     user_allergens = None
+    user_countries = None
 
     if authorization:
         try:
             token = authorization.replace("Bearer ", "")
             user = await get_current_user(token)
             user_allergens = user.allergies or None
+            user_countries = user.countries or None
         except Exception:
             pass
 
     products = await ProductService.search_products(
-        query, page, page_size, user_allergens
+        query, page, page_size, user_allergens, user_countries
     )
     return products
 
@@ -55,17 +57,19 @@ async def get_products_by_index(
     et filtre optionnellement sur les allergies de l'utilisateur.
     """
     user_allergens = None
+    user_countries = None
 
     if authorization:
         try:
             token = authorization.replace("Bearer ", "")
             user = await get_current_user(token)
             user_allergens = user.allergies or None
+            user_countries = user.countries or None
         except Exception:
             pass
 
     products = await ProductService.get_products_sorted(
-        sort_by, page, page_size, user_allergens
+        sort_by, page, page_size, user_allergens, user_countries
     )
     return products
 

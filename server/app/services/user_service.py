@@ -197,6 +197,55 @@ class UserService:
         return UserResponse(**user)
 
     @staticmethod
+    async def add_countries(user_id: str, countries: list[str]):
+        db = get_db()
+        user = await db["users"].find_one({"_id": ObjectId(user_id)})
+        if not user:
+            return None
+
+        existing = set(user.get("countries", []))
+        updated = list(existing.union(countries))
+
+        await db["users"].update_one(
+            {"_id": ObjectId(user_id)},
+            {
+                "$set": {
+                    "countries": updated,
+                    "updated_at": datetime.now(timezone.utc).isoformat(),
+                }
+            },
+        )
+
+        user["countries"] = updated
+        user["_id"] = str(user["_id"])
+        return UserResponse(**user)
+
+
+    @staticmethod
+    async def remove_countries(user_id: str, countries: list[str]):
+        db = get_db()
+        user = await db["users"].find_one({"_id": ObjectId(user_id)})
+        if not user:
+            return None
+
+        current = set(user.get("countries", []))
+        updated = [c for c in current if c not in countries]
+
+        await db["users"].update_one(
+            {"_id": ObjectId(user_id)},
+            {
+                "$set": {
+                    "countries": updated,
+                    "updated_at": datetime.now(timezone.utc).isoformat(),
+                }
+            },
+        )
+
+        user["countries"] = updated
+        user["_id"] = str(user["_id"])
+        return UserResponse(**user)
+
+    @staticmethod
     def generate_reset_code(length: int = 6) -> str:
         return ''.join(random.choices(string.digits, k=length))
 

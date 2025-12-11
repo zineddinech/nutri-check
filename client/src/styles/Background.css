@@ -1,5 +1,10 @@
 /* Fallback + unité moderne pour la hauteur visible */
 .background {
+  /* fallback anciens navigateurs */
+  min-height: 100svh;
+  /* hauteur visible fiable */
+  width: 100%;
+  /* évite 100vw (cause de scroll) */
   min-height: 100vh; /* hauteur visible fiable */
   width: 100%;        /* évite 100vw (cause de scroll) */
   background:

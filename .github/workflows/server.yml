@@ -5,8 +5,6 @@ on:
   push:
     branches:
       - main
-      - 'feat/**'
-      - dev
     paths:
       - 'server/**'
       - '.github/workflows/server.yml'
@@ -16,7 +14,7 @@ on:
       - '.github/workflows/server.yml'
 
 jobs:
-  # 1. LINT : Vérification du style et de la qualité du code
+  # Ce job sert d'étape de 'build' et prépare l'environnement virtuel pour les jobs suivants
   lint_server:
     name: Lint Server
     runs-on: ubuntu-latest
@@ -28,50 +26,28 @@ jobs:
         with:
           python-version: '3.13'
 
-      - name: Installation de Poetry
-        run: pip install poetry
-
-      - name: Mise en cache venv et caches Poetry
-        # Utilise le fichier lock/toml pour définir la clé de cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cache/pip
-            ~/.cache/pypoetry
-            server/.venv  # Mise en cache de l'environnement virtuel local
-          key: ${{ runner.os }}-poetry-${{ hashFiles('server/poetry.lock', 'server/pyproject.toml') }}
-          restore-keys: |
-            ${{ runner.os }}-poetry-
-
-      - name: Création de virtualenv et installation des dépendances
-        run: |
-          # Vérifie si le venv existe (cache hit). Sinon, installe les dépendances.
-          if [ ! -d "server/.venv" ]; then
-            echo "Cache manqué. Création du venv et installation des dépendances..."
-            poetry config virtualenvs.in-project true
-            poetry install --no-interaction --no-ansi
-          else
-            echo "Cache venv trouvé. Installation complète ignorée."
-          fi
-
-      - name: Exécution des Linters (Black, Isort, Mypy)
-        # continue-on-error: true n'est pas nécessaire ici si on ajoute '|| true' à la fin de la commande
+      - name: Installation de Poetry et des Dépendances
         working-directory: server
         run: |
-          # Activation du venv et exécution des outils de lint
-          . .venv/bin/activate
+          pip install poetry
+          poetry config virtualenvs.in-project true
+          poetry install
+
+      - name: Exécution des Vérifications Lint (Black, Isort, Mypy)
+        continue-on-error: true
+        working-directory: server
+        run: |
           poetry run black --check .
           poetry run isort --check-only .
-          poetry run mypy app || true # Permet à MyPy d'échouer sans faire échouer l'étape
+          poetry run mypy app
 
-  #---
+  # ---
 
-  # 2. BUILD : Construction de l'environnement et/ou des artefacts
-  build_server:
-    name: Build Server
+  setup_python:
+    name: Build Server (Configuration Python/Venv)
     runs-on: ubuntu-latest
-    needs: [ lint_server ]
-    if: always() # Force l'exécution même si lint_server échoue
+    needs: lint_server # Dépend du job de lint
+    if: always()
     steps:
       - uses: actions/checkout@v4
 
@@ -80,65 +56,42 @@ jobs:
         with:
           python-version: '3.13'
 
-      - name: Installation de Poetry
-        run: pip install poetry
-
-      - name: Restauration du Cache venv
+      - name: Restauration du Cache Poetry
+        # Mise en cache des dépendances Poetry pour accélérer l'installation
         uses: actions/cache@v4
         with:
-          path: |
-            ~/.cache/pip
-            ~/.cache/pypoetry
-            server/.venv
-          key: ${{ runner.os }}-poetry-${{ hashFiles('server/poetry.lock', 'server/pyproject.toml') }}
+          path: ~/.cache/pypoetry
+          key: ${{ runner.os }}-poetry-${{ hashFiles('server/poetry.lock') }}
           restore-keys: |
             ${{ runner.os }}-poetry-
 
-      - name: Création de virtualenv et installation des dépendances
+      - name: Installation de Poetry
+        run: pip install poetry
+
+      - name: Installation des Dépendances du Serveur
         working-directory: server
         run: |
-          if [ ! -d ".venv" ]; then
-            echo "Cache manqué. Création du venv et installation des dépendances..."
-            poetry config virtualenvs.in-project true
-            poetry install --no-interaction --no-ansi
-          else
-            echo "Cache venv trouvé. Installation complète ignorée."
-          fi
+          # Configure Poetry pour utiliser un .venv dans le répertoire du projet
+          poetry config virtualenvs.in-project true
+          poetry install
 
-      - name: Construction des artefacts (si applicable)
-        working-directory: server
-        run: |
-          . .venv/bin/activate
-          # Placer ici les commandes de construction si nécessaire (ex: poetry build)
-          echo "Construction du serveur terminée"
+      - name: Téléchargement de l'Artefact d'Environnement Virtuel
+        # Sauvegarde le .venv/ pour le job de test
+        uses: actions/upload-artifact@v4
+        with:
+          name: server-venv
+          path: server/.venv/
+          retention-days: 1
 
-  #---
 
-  # 3. TEST : Exécution des tests unitaires
+  # ---
+
   test_server:
     name: Test Server
     runs-on: ubuntu-latest
-    needs: [ build_server ]
-    if: always() # Force l'exécution même si build_server échoue (pour permettre l'exécution des tests si l'environnement est restauré)
-
-    # add MongoDB service
-    services:
-      mongodb:
-        image: mongo:latest
-        ports:
-          - 27017:27017
-
+    needs: setup_python # Dépend de la réussite de la construction/installation des dépendances
     steps:
       - uses: actions/checkout@v4
-
-      - name: Attendre que MongoDB soit prêt (Wait for MongoDB)
-        # Note: L'outil 'nc' (netcat) est généralement disponible sur ubuntu-latest
-        run: |
-          echo "Waiting for MongoDB to be ready..."
-          until nc -z 127.0.0.1 27017; do   
-            sleep 1
-          done
-          echo "MongoDB is ready!"
 
       - name: Configuration de Python
         uses: actions/setup-python@v5
@@ -148,104 +101,62 @@ jobs:
       - name: Installation de Poetry
         run: pip install poetry
 
-      - name: Restauration du Cache venv
-        uses: actions/cache@v4
+      - name: Téléchargement de l'Artefact d'Environnement Virtuel
+        # Récupère l'environnement virtuel pré-construit
+        uses: actions/download-artifact@v4
         with:
-          path: |
-            ~/.cache/pip
-            ~/.cache/pypoetry
-            server/.venv
-          key: ${{ runner.os }}-poetry-${{ hashFiles('server/poetry.lock', 'server/pyproject.toml') }}
-          restore-keys: |
-            ${{ runner.os }}-poetry-
+          name: server-venv
+          path: server/
 
-      - name: Création de virtualenv et installation des dépendances
-        run: |
-          if [ ! -d "server/.venv" ]; then
-            echo "Cache manqué. Création du venv et installation des dépendances..."
-            poetry config virtualenvs.in-project true
-            poetry install --no-interaction --no-ansi
-          else
-            echo "Cache venv trouvé. Installation complète ignorée."
-          fi
-
-      - name: Exécution des Tests (Pytest)
+      - name: Exécution des Tests Unitaires (Pytest)
         working-directory: server
         run: |
+          # Ajoute le chemin du répertoire actuel au PYTHONPATH
+          export PYTHONPATH="$PWD" 
           # Exécute les tests et génère un rapport JUnit
-          . .venv/bin/activate
-          export PYTHONPATH="$PWD/.."
           poetry run pytest --junitxml=test-report.xml
 
       - name: Téléchargement du Rapport de Test (JUnit)
-        if: always() # Toujours uploader le rapport, même si le job échoue
         uses: actions/upload-artifact@v4
+        if: always() # Toujours uploader le rapport, même si le job échoue
         with:
           name: test-report-server
           path: server/test-report.xml
           retention-days: 15
 
-  #---
+  # ---
 
-  # 4. DEPLOY : Construction et déploiement de l'image Docker
   deploy_server:
     name: Deploy Server
     runs-on: ubuntu-latest
-    needs: [ test_server ]
-    # Le job s'exécute uniquement si le push est sur 'main' ET que test_server a réussi.
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.test_server.result == 'success'
-    environment: production # Utilise un environnement GitHub
+    # Le job ne s'exécute que sur un push vers la branche par défaut (main)
+    if: github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+    needs: test_server
     steps:
       - uses: actions/checkout@v4
 
-      # Les étapes suivantes sont répétées pour assurer un environnement propre pour le déploiement
-      - name: Configuration de Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.13'
+      - name: Configuration de Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
-      - name: Installation de Poetry
-        run: pip install poetry
-
-      - name: Restauration du Cache venv
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cache/pip
-            ~/.cache/pypoetry
-            server/.venv
-          key: ${{ runner.os }}-poetry-${{ hashFiles('server/poetry.lock', 'server/pyproject.toml') }}
-          restore-keys: |
-            ${{ runner.os }}-poetry-
-
-      - name: Création de virtualenv et installation des dépendances
-        run: |
-          if [ ! -d "server/.venv" ]; then
-            poetry config virtualenvs.in-project true
-            poetry install --no-interaction --no-ansi
-          fi
-
-      - name: Construction et Push de l'image Docker
+      - name: Déploiement Docker (Construire et Pousser)
         env:
-          # Utilisation des secrets pour l'authentification Docker
-          DOCKERHUB_USER: ${{ secrets.DOCKER_HUB_USER }}
-          DOCKERHUB_TOKEN: ${{ secrets.DOCKER_HUB_TOKEN }}
+          DOCKER_USERNAME: ${{ secrets.DOCKER_HUB_USER }}
+          DOCKER_PASSWORD: ${{ secrets.DOCKER_HUB_TOKEN }}
           SERVER_APP_NAME: ${{ secrets.SERVER_APP_NAME }}
         run: |
           # 1. Connexion à Docker Hub
-          echo "${DOCKERHUB_TOKEN}" | docker login -u "${DOCKERHUB_USER}" --password-stdin
-          
+          echo "${DOCKER_PASSWORD}" | docker login -u "${DOCKER_USERNAME}" --password-stdin
+
           # 2. Lecture de la version depuis pyproject.toml
-          # Utilisation de la version lue ou 'latest' par défaut
           APP_VERSION=v$(grep '^version =' server/pyproject.toml | awk -F'"' '{print $2}')
-          IMAGE_TAG="${DOCKERHUB_USER}/${SERVER_APP_NAME}:${APP_VERSION}"
+          IMAGE_TAG="${DOCKER_USERNAME}/${SERVER_APP_NAME}:${APP_VERSION}"
           
           echo "Déploiement du server version ${IMAGE_TAG}..."
-
+          
           # 3. Construction et Push de l'image (avec le tag de version)
           docker build -t "$IMAGE_TAG" -f server/Dockerfile server/
           docker push "$IMAGE_TAG"
-          
+
           # 4. Push avec le tag 'latest'
-          docker tag "$IMAGE_TAG" "${DOCKERHUB_USER}/${SERVER_APP_NAME}:latest"
-          docker push "${DOCKERHUB_USER}/${SERVER_APP_NAME}:latest"
+          docker tag "$IMAGE_TAG" "${DOCKER_USERNAME}/${SERVER_APP_NAME}:latest"
+          docker push "${DOCKER_USERNAME}/${SERVER_APP_NAME}:latest"

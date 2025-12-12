@@ -3,6 +3,15 @@ import { useNavigate } from "react-router-dom";
 import "../../styles/Profil.css";
 import "../../styles/Background.css";
 import { getConnectedUser,addAllergy, removeAllergy } from "../../services/authService";
+import translations from "../../translations/translations.json";
+
+const CURRENT_LOCALE = "fr";
+
+const t = (englishName) => {
+  return translations[CURRENT_LOCALE]?.[englishName] || englishName;
+};
+
+const translateAllergy = (englishName) => t(englishName);
 
 function Profil() {
   const navigate = useNavigate();
@@ -185,53 +194,22 @@ const handleRemoveAllergy = async (name) => {
           </div>
 
           {/* Allergies */}
-  <div className="profil-section">
-  <h2 className="section-title">🚫 Allergies et intolérances</h2>
-
-  {/* Input autosuggest */}
-<div ref={dropdownRef} className="allergy-input-wrapper">
-    <input
-      type="text"
-      className="allergy-input"
-      placeholder="Rechercher une allergie…"
-      value={newAllergy}
-      onChange={(e) => setNewAllergy(e.target.value)}
-      onFocus={() => setShowSuggestions(true)}
-    />
-
-    {showSuggestions && newAllergy.trim() && (
-      <div className="allergy-dropdown">
-        {loadingSuggestions && <div className="dropdown-item">Recherche…</div>}
-
-        {!loadingSuggestions && suggestions.map((s) => (
-          <button
-            key={s}
-            className="dropdown-item-btn"
-            onClick={() => handleAddAllergyFromList(s)}
-          >
-            {s}
-          </button>
-        ))}
-
-        {!loadingSuggestions && suggestions.length === 0 && (
-          <div className="dropdown-item">Aucun résultat</div>
-        )}
-      </div>
-    )}
-  </div>
-
-  {/* Liste des allergies */}
-  <div className="allergies-list">
-    {user.allergies?.map((a) => (
-      <div key={a} className="allergy-tag">
-        ⚠️ {a}
-        <button className="allergy-remove-btn" onClick={() => handleRemoveAllergy(a)}>
-          ❌
-        </button>
-      </div>
-    ))}
-  </div>
-</div>
+          <div className="profil-section">
+            <h2 className="section-title">🚫 Allergies et intolérances</h2>
+            {user.allergies && user.allergies.length > 0 ? (
+              <div className="allergies-list">
+                {user.allergies.map((allergy, index) => (
+                  <div key={index} className="allergy-tag">
+                    ⚠️ {allergy}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="empty-allergies">
+                <p>Aucune allergie renseignée</p>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>

@@ -1,4 +1,4 @@
-from httpx import AsyncClient
+from httpx import ASGITransport, AsyncClient
 import pytest
 from bson import ObjectId
 from fastapi import status
@@ -218,7 +218,7 @@ async def test_remove_allergy_from_nonexistent_user(client):
 @pytest.mark.asyncio
 async def test_forgot_password_integration(sample_user):
 
-    async with AsyncClient(app=app, base_url="http://api") as client:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://api") as client:
 
         # 1. Create a user first
         user = await sample_user
@@ -235,7 +235,7 @@ async def test_forgot_password_integration(sample_user):
 @pytest.mark.asyncio
 async def test_reset_password_integration(sample_user):
 
-    async with AsyncClient(app=app, base_url="http://api") as client:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://api") as client:
 
         user = await sample_user
 

@@ -2,20 +2,74 @@ import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { getProductById } from "../services/productService";
 import "./../styles/ProductDetail.css";
+import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
+import "leaflet/dist/leaflet.css";
 
 const OFF_PRODUCT_BY_CODE = "https://world.openfoodfacts.org/api/v2/product/";
 const FALLBACK_IMG =
   "https://via.placeholder.com/400/e0e0e0/757575?text=Image+non+disponible";
+
+// DONNÉES D'EXEMPLE POUR LA CARTE (10 Points autour de Paris)
+const VENDOR_LOCATIONS = [
+  {
+    id: 1,
+    name: "Supermarché Saint-Honoré (75001)",
+    coords: [48.863, 2.337],
+  },
+
+  {
+    id: 2,
+    name: "Épicerie Saint-Sulpice (75006)",
+    coords: [48.851, 2.333],
+  },
+
+  { id: 3, name: "Hyper Clichy (75018)", coords: [48.887, 2.33] },
+
+  { id: 4, name: "Marché Italie 2 (75013)", coords: [48.828, 2.358] },
+
+  {
+    id: 5,
+    name: "Carrefour Billancourt (92100)",
+    coords: [48.835, 2.228],
+  },
+
+  { id: 6, name: "Monop' Château (94300)", coords: [48.847, 2.438] },
+
+  {
+    id: 7,
+    name: "Super U Stade de France (93200)",
+    coords: [48.92, 2.361],
+  },
+
+  {
+    id: 8,
+    name: "Market Versailles Rive Droite (78000)",
+    coords: [48.805, 2.12],
+  },
+
+  {
+    id: 9,
+    name: "Grande Surface Puteaux (92800)",
+    coords: [48.891, 2.238],
+  },
+
+  {
+    id: 10,
+    name: "Boutique Aéroport Orly (94310)",
+    coords: [48.73, 2.37],
+  },
+];
 
 function ProductDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [product, setProduct] = useState(null);
   const [image, setImage] = useState(null);
-  const [loading, setLoading] = useState(true);      // → uniquement pour le produit
+  const [loading, setLoading] = useState(true); // → uniquement pour le produit
   const [error, setError] = useState(null);
   const [imageLoaded, setImageLoaded] = useState(false);
 
+  const defaultCenter = [48.8566, 2.3522];
   // 1) Charger le produit (backend Nutri-Check)
   useEffect(() => {
     let cancelled = false;
@@ -36,7 +90,7 @@ function ProductDetail() {
         console.error("Erreur lors du chargement du produit:", err);
         setError(err.message);
       } finally {
-        if (!cancelled) setLoading(false);  // ✅ on arrête le spinner dès que le produit est là
+        if (!cancelled) setLoading(false); // ✅ on arrête le spinner dès que le produit est là
       }
     };
 
@@ -164,7 +218,7 @@ function ProductDetail() {
   }
 
   return (
-    <div className="product-detail-container">
+    <div className="product-detail-container" style={{ overflowY: "scroll" }}>
       <button className="back-button-top" onClick={() => navigate(-1)}>
         <span className="button-icon">←</span>
         Retour aux produits
@@ -311,6 +365,8 @@ function ProductDetail() {
             />
           </div>
         </div>
+
+        <ProductMap />
       </div>
     </div>
   );
@@ -335,6 +391,47 @@ function NutritionCard({ icon, label, value, unit, gradient }) {
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+function ProductMap() {
+  // Coordonnées par défaut (ex: le centre de la France)
+
+  const PARIS_CENTER = [48.8566, 2.3522];
+
+  const centerCoords = PARIS_CENTER;
+
+  return (
+    // Le style 'height' et 'width' sur le conteneur parent est CRUCIAL
+    <div
+      id="map-container"
+      style={{
+        height: "400px",
+        width: "100%",
+        borderRadius: "8px",
+        overflow: "hidden",
+        margin: "20px 0",
+      }}
+    >
+      <MapContainer
+        center={centerCoords}
+        zoom={10}
+        scrollWheelZoom={false}
+        style={{ height: "100%", width: "100%" }} // Le style doit aussi être sur MapContainer
+      >
+        <TileLayer
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        />
+        {VENDOR_LOCATIONS.map((vendor) => (
+          <Marker key={vendor.id} position={vendor.coords}>
+            <Popup>
+              <div style={{ fontWeight: "bold" }}>{vendor.name}</div>
+            </Popup>
+          </Marker>
+        ))}
+      </MapContainer>
     </div>
   );
 }

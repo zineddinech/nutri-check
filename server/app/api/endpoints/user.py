@@ -139,6 +139,28 @@ async def remove_allergies_from_user(user_id: str, allergies: List[str] = Body(.
         )
     return user
 
+@router.post("/{user_id}/countries", response_model=UserResponse)
+async def add_countries_to_user(user_id: str, countries: List[str] = Body(...)):
+    """
+    Ajoute un ou plusieurs pays à un utilisateur
+    """
+    user = await UserService.add_countries(user_id, countries)
+    if not user:
+        raise HTTPException(status_code=404, detail="Utilisateur non trouvé")
+    return user
+
+
+@router.delete("/{user_id}/countries", response_model=UserResponse)
+async def remove_countries_from_user(user_id: str, countries: List[str] = Body(...)):
+    """
+    Supprime un ou plusieurs pays d’un utilisateur
+    """
+    user = await UserService.remove_countries(user_id, countries)
+    if not user:
+        raise HTTPException(status_code=404, detail="Utilisateur non trouvé")
+    return user
+
+
 
 @router.post("/{user_id}/favorites/{product_id}", response_model=UserResponse)
 async def add_favorite(user_id: str, product_id: str):

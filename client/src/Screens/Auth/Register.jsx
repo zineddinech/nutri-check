@@ -4,13 +4,14 @@ import "./../../styles/Register.css";
 import StepPersonal from "./steps/StepPersonal";
 import StepRestrictions from "./steps/StepRestrictions";
 import StepPassword from "./steps/StepPassword";
+import StepCountry from "./steps/StepCountry";
 
 const BASE_URL = "http://localhost:8000";
 
 async function apiRegisterUser({ email, first_name, last_name, password }) {
   const payload = {
     email,
-    username: email,          // <<--- username = email
+    username: email, // <<--- username = email
     first_name,
     last_name,
     password,
@@ -33,18 +34,41 @@ async function apiRegisterUser({ email, first_name, last_name, password }) {
 }
 
 async function apiAddAllergies(userId, allergies) {
-  const res = await fetch(`${BASE_URL}/api/users/${encodeURIComponent(userId)}/allergies`, {
-    method: "POST",
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(allergies), // ex: ["Milk","Sesame seeds"]
-  });
+  const res = await fetch(
+    `${BASE_URL}/api/users/${encodeURIComponent(userId)}/allergies`,
+    {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(allergies), // ex: ["Milk","Sesame seeds"]
+    }
+  );
 
   if (!res.ok) {
     const txt = await res.text().catch(() => "");
     throw new Error(`Add allergies failed (HTTP ${res.status}) ${txt}`);
+  }
+  return res.json();
+}
+
+async function apiAddCountries(userId, countries) {
+  const res = await fetch(
+    `${BASE_URL}/api/users/${encodeURIComponent(userId)}/countries`,
+    {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(countries),
+    }
+  );
+
+  if (!res.ok) {
+    const txt = await res.text().catch(() => "");
+    throw new Error(`Add countries failed (HTTP ${res.status}) ${txt}`);
   }
   return res.json();
 }
@@ -59,16 +83,19 @@ function Register() {
 
   // Étape 2 — deux listes distinctes
   const [allergies, setAllergies] = useState([]); // ex: ["Milk", "Sesame seeds"]
-  const [regimes, setRegimes] = useState([]);     // on verra plus tard
+  const [regimes, setRegimes] = useState([]); // on verra plus tard
 
-  // Étape 3
+  // Etape 3
+  const [countries, setCountries] = useState([]);
+
+  // Étape 4
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
 
   const [loading, setLoading] = useState(false);
   const [submitError, setSubmitError] = useState("");
 
-  const goNext = () => setStep((s) => Math.min(3, s + 1));
+  const goNext = () => setStep((s) => Math.min(4, s + 1));
   const goPrev = () => setStep((s) => Math.max(1, s - 1));
 
   const finish = async () => {
@@ -76,7 +103,9 @@ function Register() {
 
     // Validation minimale côté mot de passe
     if (password !== confirm || password.length < 8) {
-      setSubmitError("Mot de passe invalide (au moins 8 caractères et confirmation identique).");
+      setSubmitError(
+        "Mot de passe invalide (au moins 8 caractères et confirmation identique)."
+      );
       return;
     }
 
@@ -102,12 +131,22 @@ function Register() {
         throw new Error("Register ok mais pas d'_id renvoyé.");
       }
 
-      // 2) Add allergies (si non vide)
+      // 2) Add allergies and countries
       const cleanAllergies = Array.from(
-        new Set((allergies || []).map((a) => a && a.toString().trim()).filter(Boolean))
+        new Set(
+          (allergies || []).map((a) => a && a.toString().trim()).filter(Boolean)
+        )
       );
       if (cleanAllergies.length > 0) {
         await apiAddAllergies(userId, cleanAllergies);
+      }
+      const cleanCountries = Array.from(
+        new Set(
+          (countries || []).map((a) => a && a.toString().trim()).filter(Boolean)
+        )
+      );
+      if (cleanCountries.length > 0) {
+        await apiAddCountries(userId, cleanCountries);
       }
 
       // 3) Stocker l'utilisateur dans le localStorage et notifier l'app
@@ -121,8 +160,15 @@ function Register() {
       // 4) Success UX
       alert("Inscription terminée");
       // Optionnel: reset du formulaire / retour à l'étape 1
-      setStep(1); setEmail(""); setFirstName(""); setLastName("");
-      setAllergies([]); setRegimes([]); setPassword(""); setConfirm("");
+      setStep(1);
+      setEmail("");
+      setFirstName("");
+      setLastName("");
+      setAllergies([]);
+      setCountries([]);
+      setRegimes([]);
+      setPassword("");
+      setConfirm("");
       navigate("/", { replace: true });
     } catch (e) {
       console.error(e);
@@ -136,7 +182,13 @@ function Register() {
     <div className="center-screen">
       <div className="form-card register-card">
         <h1 className="title register-title">
-          { step === 1 ? "Inscription" : step === 2 ? "Mes restrictions" : "Mot de passe" }
+          {step === 1
+            ? "Inscription"
+            : step === 2
+            ? "Restrictions"
+            : step === 3
+            ? "Pays"
+            : "Mot de passe"}
         </h1>
 
         {/* Stepper simple */}
@@ -144,6 +196,7 @@ function Register() {
           <div className={`step ${step >= 1 ? "active" : ""}`}>1</div>
           <div className={`step ${step >= 2 ? "active" : ""}`}>2</div>
           <div className={`step ${step >= 3 ? "active" : ""}`}>3</div>
+          <div className={`step ${step >= 4 ? "active" : ""}`}>4</div>
         </div>
 
         {step === 1 && (
@@ -171,6 +224,15 @@ function Register() {
         )}
 
         {step === 3 && (
+          <StepCountry
+            countries={countries}
+            setCountries={setCountries}
+            onPrev={goPrev}
+            onNext={goNext}
+          />
+        )}
+
+        {step === 4 && (
           <StepPassword
             password={password}
             confirm={confirm}
@@ -183,8 +245,10 @@ function Register() {
           />
         )}
 
-        {!!submitError && step === 3 && (
-          <div style={{ marginTop: 12, fontSize: 14, color: "#dc2626" }}>{submitError}</div>
+        {!!submitError && step === 4 && (
+          <div style={{ marginTop: 12, fontSize: 14, color: "#dc2626" }}>
+            {submitError}
+          </div>
         )}
       </div>
     </div>

@@ -1,6 +1,8 @@
 import React, { useState } from "react";
 import "./../styles/Recipes.css";
 import "./../styles/Background.css";
+import { getProductsSearched } from "../services/productService";
+import { useNavigate } from "react-router-dom";
 
 function Recipes() {
   const [recipeInput, setRecipeInput] = useState("");
@@ -8,6 +10,17 @@ function Recipes() {
   const [recipeResult, setRecipeResult] = useState(null);
   const [error, setError] = useState(null);
   const [errorDetails, setErrorDetails] = useState(null);
+  const [matchesLoading, setMatchesLoading] = useState(false);
+  const [matchedProducts, setMatchedProducts] = useState({}); // index -> product or null
+  const [notFoundIngredients, setNotFoundIngredients] = useState([]);
+  const [infoMessage, setInfoMessage] = useState(null);
+  const navigate = useNavigate();
+
+  const DEFAULT_IMAGE =
+    "https://via.placeholder.com/150/e0e0e0/757575?text=Produit";
+
+  const API_BASE = "http://localhost:8000";
+  const getLocalImage = (code) => `${API_BASE}/images/${code}.jpg`;
 
   // Appeler l'IA pour analyser la recette
   const analyzeRecipe = async (recipe) => {
@@ -112,11 +125,41 @@ function Recipes() {
 
       if (result.success) {
         setRecipeResult(result);
+        setInfoMessage(null);
+        // lancer la recherche de produits pour les ingrédients retournés
+        findProductsForIngredients(result.ingredients || []);
         setError(null);
       } else {
-        setError(result.error.message);
-        setErrorDetails(result.error);
-        setRecipeResult(null);
+        // Cas fallback : si l'erreur vient du LLM (ex: Gemini 503), on tente
+        // une extraction heuristique locale des ingrédients et on continue
+        const details = result.error?.details || "";
+        const isLlm503 =
+          result.error?.title === "Erreur serveur LLM" ||
+          /503|gemini|service unavailable/i.test(details);
+
+        if (isLlm503) {
+          // extraction locale
+          const parsed = parseIngredientsFromText(recipeInput);
+          const fallbackResult = {
+            success: true,
+            recipeName: recipeInput.split("\n")[0] || "Ma recette",
+            totalCalories: 0,
+            ingredients: parsed,
+            steps: [],
+          };
+
+          setRecipeResult(fallbackResult);
+          setInfoMessage(
+            "Le service d'analyse (LLM) est indisponible — affichage basé sur une extraction heuristique locale."
+          );
+          findProductsForIngredients(parsed || []);
+          setError(null);
+          setErrorDetails(result.error);
+        } else {
+          setError(result.error.message);
+          setErrorDetails(result.error);
+          setRecipeResult(null);
+        }
       }
     } catch (err) {
       setError("Erreur inattendue lors du traitement");
@@ -127,11 +170,256 @@ function Recipes() {
     }
   };
 
+  function normalizeIngredientName(name) {
+    if (!name) return "";
+    // enlever quantités, parenthèses, ponctuation basique
+    let s = name.toString().toLowerCase();
+    // enlever contenu entre parenthèses
+    s = s.replace(/\([^)]*\)/g, "");
+    // enlever chiffres et pourcentages
+    s = s.replace(
+      /\d+[\.,]?\d*\s*(g|kg|ml|l|cl|mg|tsp|tbsp|cuillere[s]?|cuillère[s]?|slice[s]?|tranche[s]?|grammes?)?/g,
+      ""
+    );
+    // enlever unités courantes isolées
+    s = s.replace(
+      /\b(g|kg|ml|l|cl|mg|tsp|tbsp|cuillere|cuillères|cuillère|cuilleres)\b/g,
+      ""
+    );
+    // garder seulement lettres, espaces et -
+    s = s.replace(/[^a-z\-\s]/g, "");
+    s = s.trim();
+    return s;
+  }
+
+  function parseIngredientsFromText(text) {
+    if (!text || !text.trim()) return [];
+
+    // Split by newlines and commas and common bullet separators
+    const parts = text
+      .split(/\n|,|•|-|;/)
+      .map((p) => p.trim())
+      .filter(Boolean);
+
+    const verbs = [
+      "cuire",
+      "mélanger",
+      "ajouter",
+      "faire",
+      "porter",
+      "laisser",
+      "préchauffer",
+      "verser",
+      "incorporer",
+      "placer",
+      "servir",
+    ];
+
+    const candidates = [];
+    for (let p of parts) {
+      // skip lines that look like instructions (start with a verb)
+      const firstWord = p.split(/\s+/)[0]?.toLowerCase() || "";
+      if (verbs.includes(firstWord)) continue;
+
+      // remove parenthesis and quantities
+      let cleaned = p.replace(/\([^)]*\)/g, "");
+      cleaned = normalizeIngredientName(cleaned);
+      if (!cleaned) continue;
+
+      // remove very short tokens
+      if (cleaned.length < 2) continue;
+
+      candidates.push({ name: cleaned });
+    }
+
+    // Deduplicate by name
+    const uniq = [];
+    const seen = new Set();
+    for (const c of candidates) {
+      if (!seen.has(c.name)) {
+        seen.add(c.name);
+        uniq.push(c);
+      }
+    }
+
+    return uniq;
+  }
+
+  function scoreProductMatch(ingredientName, productName) {
+    const ing = ingredientName.toLowerCase().trim();
+    const prod = (productName || "").toLowerCase().trim();
+
+    if (!ing || !prod) return 0;
+
+    // Exact match (très bon)
+    if (ing === prod) return 100;
+
+    // Ingredient is a substring of product (ex: "sel" in "sel fin") - bon
+    if (prod.includes(ing)) return 80;
+
+    // Product starts with ingredient - très bon
+    if (prod.startsWith(ing)) return 85;
+
+    // Token-based matching: comparer les mots
+    const ingTokens = ing.split(/\s+/).filter(Boolean);
+    const prodTokens = prod.split(/\s+/).filter(Boolean);
+
+    if (ingTokens.length === 0) return 0;
+
+    // Si ingredient a plusieurs tokens (ex: "sel fin")
+    if (ingTokens.length > 1) {
+      // Vérifier si tous les tokens de l'ingrédient sont dans le produit
+      const allTokensMatch = ingTokens.every((t) =>
+        prodTokens.some((pt) => pt.startsWith(t) || pt === t)
+      );
+      if (allTokensMatch) return 90;
+
+      // Au moins 2 tokens sur 3 match
+      const matchCount = ingTokens.filter((t) =>
+        prodTokens.some((pt) => pt.startsWith(t) || pt === t)
+      ).length;
+      if (matchCount >= 2) return 70;
+    }
+
+    // Single token: vérifier si le token est un mot complet du produit
+    if (ingTokens.length === 1) {
+      const token = ingTokens[0];
+      const isCompleteWord = prodTokens.some(
+        (pt) =>
+          pt === token ||
+          (pt.length > 3 &&
+            pt.startsWith(token) &&
+            pt.length - token.length <= 2)
+      );
+      if (isCompleteWord) return 75;
+
+      // Éviter les faux positifs : le token ne doit pas être qu'une partie d'un mot
+      // Ex: "fin" ne doit pas matcher "muffin"
+      const isBadPartialMatch = prodTokens.some(
+        (pt) =>
+          pt.includes(token) &&
+          pt !== token &&
+          !pt.startsWith(token) &&
+          token.length < 4
+      );
+      if (isBadPartialMatch) return 10; // très faible score
+
+      // Partial match acceptable (si token est au début)
+      if (prodTokens.some((pt) => pt.startsWith(token))) return 60;
+    }
+
+    return 0;
+  }
+
+  async function findProductsForIngredients(ingredients) {
+    if (!ingredients || ingredients.length === 0) {
+      setMatchedProducts({});
+      setNotFoundIngredients([]);
+      return;
+    }
+
+    setMatchesLoading(true);
+    const matched = {};
+    const notFound = [];
+
+    // limiter le nombre de requêtes simultanées si nécessaire
+    const promises = ingredients.map(async (ing, idx) => {
+      const rawName = ing?.name || ing || "";
+      const query = normalizeIngredientName(rawName) || rawName;
+
+      try {
+        // recherche floue : on demande 3 résultats et on score chacun
+        const data = await getProductsSearched(query, 1, 3);
+        if (Array.isArray(data) && data.length > 0) {
+          // scorer les résultats et prendre le meilleur
+          const scored = data.map((prod) => ({
+            product: prod,
+            score: scoreProductMatch(rawName, prod.product_name),
+          }));
+
+          scored.sort((a, b) => b.score - a.score);
+
+          // Si le meilleur score est trop faible, on considère qu'on n'a pas trouvé
+          if (scored[0].score >= 50) {
+            matched[idx] = scored[0].product;
+          } else {
+            // Essayer une recherche par tokens
+            const tokens = query.split(/\s+/).filter(Boolean);
+            let found = null;
+            for (let t of tokens.slice(-2).reverse()) {
+              try {
+                const d2 = await getProductsSearched(t, 1, 3);
+                if (Array.isArray(d2) && d2.length > 0) {
+                  const scored2 = d2.map((prod) => ({
+                    product: prod,
+                    score: scoreProductMatch(t, prod.product_name),
+                  }));
+                  scored2.sort((a, b) => b.score - a.score);
+                  if (scored2[0].score >= 50) {
+                    found = scored2[0].product;
+                    break;
+                  }
+                }
+              } catch (e) {
+                // ignore
+              }
+            }
+            if (found) matched[idx] = found;
+            else {
+              matched[idx] = null;
+              notFound.push(rawName);
+            }
+          }
+        } else {
+          // si rien, tenter une recherche par token (dernier mot)
+          const tokens = query.split(/\s+/).filter(Boolean);
+          let found = null;
+          for (let t of tokens.slice(-2).reverse()) {
+            try {
+              const d2 = await getProductsSearched(t, 1, 3);
+              if (Array.isArray(d2) && d2.length > 0) {
+                const scored2 = d2.map((prod) => ({
+                  product: prod,
+                  score: scoreProductMatch(t, prod.product_name),
+                }));
+                scored2.sort((a, b) => b.score - a.score);
+                if (scored2[0].score >= 50) {
+                  found = scored2[0].product;
+                  break;
+                }
+              }
+            } catch (e) {
+              // ignore
+            }
+          }
+
+          if (found) matched[idx] = found;
+          else {
+            matched[idx] = null;
+            notFound.push(rawName);
+          }
+        }
+      } catch (e) {
+        matched[idx] = null;
+        notFound.push(rawName);
+      }
+    });
+
+    await Promise.all(promises);
+
+    setMatchedProducts(matched);
+    setNotFoundIngredients(notFound);
+    setMatchesLoading(false);
+  }
+
   const handleClear = () => {
     setRecipeInput("");
     setRecipeResult(null);
     setError(null);
     setErrorDetails(null);
+    setInfoMessage(null);
+    setMatchedProducts({});
+    setNotFoundIngredients([]);
   };
 
   const handleRetry = () => {
@@ -234,7 +522,7 @@ function Recipes() {
               {/* En-tête de la recette */}
               <div className="recipe-header-result">
                 <div>
-                  <h2 className="recipe-name">🍲 {recipeResult.recipeName}</h2>
+                  <h2 className="recipe-name">{recipeResult.recipeName}</h2>
                   {recipeResult.ingredients.length > 0 && (
                     <p className="recipe-meta">
                       {recipeResult.ingredients.length} ingrédient
@@ -250,36 +538,113 @@ function Recipes() {
               </div>
 
               {/* Ingrédients */}
-              {recipeResult.ingredients.length > 0 ? (
-                <div className="recipe-section">
-                  <h3 className="section-title">📦 Ingrédients</h3>
-                  <div className="ingredients-list">
-                    {recipeResult.ingredients.map((ingredient, index) => (
-                      <div key={index} className="ingredient-item">
-                        <span className="ingredient-name">
-                          {ingredient.name}
-                        </span>
-                        <span className="ingredient-quantity">
-                          {ingredient.quantity}
-                        </span>
-                        <span className="ingredient-calories">
-                          {ingredient.calories} cal
-                        </span>
-                      </div>
-                    ))}
+              <div className="recipe-section">
+                <h3 className="section-title">Ingrédients</h3>
+
+                {infoMessage && (
+                  <div className="info-banner">
+                    <strong>Info:</strong> {infoMessage}
                   </div>
-                </div>
-              ) : (
-                <div className="recipe-section">
-                  <h3 className="section-title">📦 Ingrédients</h3>
+                )}
+
+                {matchesLoading && (
+                  <p className="muted">
+                    Recherche des produits correspondants...
+                  </p>
+                )}
+
+                {!matchesLoading && notFoundIngredients.length > 0 && (
+                  <div className="not-found-list">
+                    <strong>Non trouvés :</strong>
+                    <span> {notFoundIngredients.join(", ")}</span>
+                  </div>
+                )}
+
+                {recipeResult.ingredients.length > 0 ? (
+                  <div className="ingredients-grid">
+                    {recipeResult.ingredients.map((ingredient, index) => {
+                      const prod = matchedProducts[index];
+
+                      if (prod) {
+                        const code = prod.code ?? prod._id ?? prod.id;
+                        const imageUrl = code ? getLocalImage(code) : null;
+                        const productId = prod._id || prod.id;
+                        const nutri =
+                          prod.nutriscore_score ||
+                          prod.nutrition_grade_fr ||
+                          "—";
+
+                        return (
+                          <div
+                            key={index}
+                            className="product-card-recipe"
+                            onClick={() => navigate(`/product/${productId}`)}
+                            style={{ cursor: "pointer" }}
+                          >
+                            <div className="product-image-container">
+                              {!imageUrl ? (
+                                <div className="image-skeleton"></div>
+                              ) : (
+                                <img
+                                  src={imageUrl}
+                                  alt={prod.product_name || "produit"}
+                                  className="product-image visible"
+                                  loading="lazy"
+                                  onError={(e) => {
+                                    e.target.src = DEFAULT_IMAGE;
+                                  }}
+                                />
+                              )}
+                            </div>
+
+                            <div className="product-info-recipe">
+                              <div className="ingredient-tag">
+                                {ingredient.name}
+                              </div>
+                              <div className="product-title">
+                                {prod.product_name || prod.name || "—"}
+                              </div>
+                              {prod.brands && (
+                                <div className="product-brand">
+                                  {prod.brands}
+                                </div>
+                              )}
+                              <div className="product-nutri">
+                                Nutri-Score: {nutri}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      }
+
+                      // Affichage pour ingrédients non trouvés
+                      return (
+                        <div
+                          key={index}
+                          className="product-card-recipe not-found-card"
+                        >
+                          <div className="not-found-content">
+                            <div className="not-found-icon">❌</div>
+                            <div className="not-found-text">
+                              <strong>{ingredient.name}</strong>
+                              <span className="not-found-note">
+                                Non trouvé localement
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
                   <p className="no-data">Aucun ingrédient détecté</p>
-                </div>
-              )}
+                )}
+              </div>
 
               {/* Étapes */}
               {recipeResult.steps.length > 0 ? (
                 <div className="recipe-section">
-                  <h3 className="section-title">👨‍🍳 Étapes à suivre</h3>
+                  <h3 className="section-title">Étapes à suivre</h3>
                   <ol className="steps-list">
                     {recipeResult.steps.map((step, index) => (
                       <li key={index} className="step-item">
@@ -290,7 +655,7 @@ function Recipes() {
                 </div>
               ) : (
                 <div className="recipe-section">
-                  <h3 className="section-title">👨‍🍳 Étapes à suivre</h3>
+                  <h3 className="section-title">Étapes à suivre</h3>
                   <p className="no-data">Aucune étape détectée</p>
                 </div>
               )}

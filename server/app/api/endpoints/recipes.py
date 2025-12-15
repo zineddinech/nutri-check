@@ -9,7 +9,7 @@ from pydantic import BaseModel
 router = APIRouter()
 
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
-MODEL_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent"
+MODEL_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent"
 
 if not GOOGLE_API_KEY:
     raise ValueError("GOOGLE_API_KEY n'est pas définie dans les variables d'environnement")

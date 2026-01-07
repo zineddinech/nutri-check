@@ -13,6 +13,46 @@ import {
   getUserFavorites,
 } from "../services/favoritesService";
 
+
+const ImageWithLoader = ({ src, alt, fallbackIcon }) => {
+  const [isLoaded, setIsLoaded] = useState(false);
+  const [hasError, setHasError] = useState(false);
+
+  
+  if (!src) {
+    return (
+      <div className="no-image-placeholder">
+        <span className="no-image-icon">📷</span>
+        <span>Pas d'image</span>
+      </div>
+    );
+  }
+
+  if (hasError) {
+    return (
+      <div className="no-image-placeholder">
+        <span className="no-image-icon">📷</span>
+        <span>Pas d'image</span>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      {!isLoaded && <div className="image-skeleton"></div>}
+
+      <img
+        src={src}
+        alt={alt}
+        className={`product-image ${isLoaded ? "visible" : ""}`}
+        loading="lazy"
+        onLoad={() => setIsLoaded(true)}
+        onError={() => setHasError(true)} 
+      />
+    </>
+  );
+};
+
 function Products() {
   const navigate = useNavigate();
   const [sort, setSort] = useState("nutriscore_score_asc");
@@ -332,8 +372,12 @@ function Products() {
               {displayedProducts.map((product) => {
                 const code = product.code ?? product._id ?? product.id;
                 const name = product.product_name ?? product.name ?? "—";
-                const nutri =
-                  product.nutriscore_score ?? product.nutrition_grade_fr ?? "—";
+                const rawNutri = product.nutrition_grade_fr ?? product.nutriscore_score;
+                
+                const nutri = 
+                  (!rawNutri || rawNutri === "unknown" || rawNutri === "not-applicable") 
+                  ? "—" 
+                  : rawNutri;
                 const compatibility =
                   product.compatibility ?? product.compatibility_score ?? 0;
                 const isFavorite = favorites.has(code);
@@ -357,27 +401,18 @@ function Products() {
                     </button>
 
                     <div className="compatibility">
-                      Compatible à {compatibility}%
+                      Nutriscore {nutri}
                     </div>
 
                     <div className="product-image-container">
-                      {!imageUrl ? (
-                        <div className="image-skeleton"></div>
-                      ) : (
-                        <img
-                          src={imageUrl}
-                          alt={name}
-                          className="product-image visible"
-                          loading="lazy"
-                          onError={(e) => {
-                            e.target.src = DEFAULT_IMAGE;
-                          }}
-                        />
-                      )}
+                      <ImageWithLoader 
+                        src={imageUrl} 
+                        alt={name} 
+                      />
                     </div>
 
                     <div className="product-title">{name}</div>
-                    <div className="nutriscore">Nutri-Score: {nutri}</div>
+                    <div className="nutriscore">Favorites: 10 fois</div>
                   </div>
                 );
               })}

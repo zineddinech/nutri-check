@@ -1,6 +1,7 @@
 from fastapi import APIRouter
 
-from .endpoints import auth, favorite, product, profil, shopping_trip, user, recipes
+from .endpoints import (auth, favorite, product, profil, recipes,
+                        shopping_trip, user)
 
 api_router = APIRouter()
 

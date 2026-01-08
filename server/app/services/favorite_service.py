@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 
 from bson import ObjectId
 from fastapi import HTTPException, status
@@ -36,7 +36,7 @@ class FavoriteService:
             "user_id": user_id,
             "product_id": product_id,
             "product_snapshot": snapshot,
-            "created_at": datetime.utcnow().isoformat(),
+            "created_at": datetime.now(timezone.utc).isoformat(),
         }
 
         result = await db["favorites"].insert_one(fav_doc)

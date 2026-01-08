@@ -9,20 +9,23 @@ from ..database.database import get_db
 class ProductService:
     @staticmethod
     async def search_products(
-        query: str, 
-        page: int, 
-        page_size: int, 
+        query: str,
+        page: int,
+        page_size: int,
         user_allergens: List[str] | None = None,
-        user_countries: List[str] | None = None
+        user_countries: List[str] | None = None,
     ) -> List[dict]:
         """
         Recherche des produits optionnellement filtrés dans la collection locale MongoDB.
+        Utilise une recherche au début du nom du produit pour éviter les faux positifs.
+        Exemple: 'poivre' trouve 'Poivre noir' mais pas 'Saucisse au poivre'.
         """
         db = get_db()
         skip = (page - 1) * page_size
 
-        # Utilise une recherche de texte simple sur le nom du produit.
-        filter_query = {"product_name": {"$regex": query, "$options": "i"}}
+        # Utilise une recherche au DÉBUT du nom du produit (ancre ^)
+        # case-insensitive pour être flexible
+        filter_query = {"product_name": {"$regex": f"^{query}", "$options": "i"}}
 
         # Filtre optionnel sur les allergens
         if user_allergens:
@@ -33,12 +36,12 @@ class ProductService:
                 a_lower = a.lower()
                 expanded_allergens.append(a_lower)
                 expanded_allergens.append(f"en:{a_lower}")
-            filter_query["allergens"] = {"$not": {"$in": expanded_allergens}}
-        
+            filter_query["allergens"] = {"$not": {"$in": expanded_allergens}}  # type: ignore
+
         # Filtre optionnel sur les pays
         if user_countries:
             # FIXME: attention,  le format des pays peut varier dans la db actuellement
-            filter_query["countries"] = {"$in": user_countries}
+            filter_query["countries"] = {"$in": user_countries}  # type: ignore
 
         products_cursor = db["products"].find(filter_query).skip(skip).limit(page_size)
 
@@ -47,11 +50,11 @@ class ProductService:
 
     @staticmethod
     async def get_products_sorted(
-        sort_by: str, 
-        page: int, 
-        page_size: int, 
+        sort_by: str,
+        page: int,
+        page_size: int,
         user_allergens: List[str] | None = None,
-        user_countries: List[str] | None = None
+        user_countries: List[str] | None = None,
     ) -> List[dict]:
         """
         Récupère les produits triés, paginés et optionnellement filtrés depuis MongoDB.
@@ -72,7 +75,7 @@ class ProductService:
                 expanded_allergens.append(a_lower)
                 expanded_allergens.append(f"en:{a_lower}")
             filter_query["allergens"] = {"$not": {"$in": expanded_allergens}}
-        
+
         # Filtre optionnel sur les pays
         if user_countries:
             # FIXME: attention,  le format des pays peut varier dans la db actuellement

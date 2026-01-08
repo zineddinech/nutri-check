@@ -6,9 +6,9 @@ from fastapi.security import OAuth2PasswordRequestForm
 
 from app.schemas.user import Token
 
-
 from ...schemas.user import UserCreate, UserResponse, UserUpdate
 from ...services.user_service import UserService
+from ...services.favorite_service import FavoriteService
 
 router = APIRouter()
 
@@ -24,8 +24,7 @@ async def create_user(user_data: UserCreate):
         user = await UserService.create_user(user_data)
         return user
     except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
 @router.post("/login", response_model=Token)
@@ -139,6 +138,7 @@ async def remove_allergies_from_user(user_id: str, allergies: List[str] = Body(.
         )
     return user
 
+
 @router.post("/{user_id}/countries", response_model=UserResponse)
 async def add_countries_to_user(user_id: str, countries: List[str] = Body(...)):
     """
@@ -161,18 +161,13 @@ async def remove_countries_from_user(user_id: str, countries: List[str] = Body(.
     return user
 
 
-
 @router.post("/{user_id}/favorites/{product_id}", response_model=UserResponse)
 async def add_favorite(user_id: str, product_id: str):
     """
     Ajoute un produit aux favoris de l’utilisateur
     """
-    user = await UserService.add_favorite(user_id, product_id)
-    if not user:
-        raise HTTPException(status_code=404, detail="Utilisateur non trouvé")
+    favorite_id = await FavoriteService.add_favorite(user_id, product_id)
+    if not favorite_id:
+        raise HTTPException(status_code=404, detail="Utilisateur ou produit non trouvé")
+    user = await UserService.get_user_by_id(user_id)
     return user
-
-
-
-
-

@@ -1,9 +1,10 @@
-from fastapi import APIRouter, Query, HTTPException
-from ...schemas.passwordReset import ForgotPasswordRequest, ResetPasswordRequest
-from ...services.user_service import UserService
+from fastapi import APIRouter, HTTPException, Query
 
+from ...schemas.passwordReset import (ForgotPasswordRequest,
+                                      ResetPasswordRequest)
 from ...schemas.user import UserResponse
 from ...services.auth_service import get_current_user
+from ...services.user_service import UserService
 
 router = APIRouter()
 
@@ -35,16 +36,9 @@ async def forgot_password(data: ForgotPasswordRequest):
 
 @router.post("/reset-password")
 async def reset_password(data: ResetPasswordRequest):
-    success = await UserService.reset_password(
-        data.email,
-        data.code,
-        data.new_password
-    )
+    success = await UserService.reset_password(data.email, data.code, data.new_password)
 
     if not success:
-        raise HTTPException(
-            status_code=400,
-            detail="Code invalide ou expiré"
-        )
+        raise HTTPException(status_code=400, detail="Code invalide ou expiré")
 
     return {"message": "Mot de passe mis à jour avec succès"}

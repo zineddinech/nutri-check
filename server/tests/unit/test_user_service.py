@@ -205,7 +205,8 @@ async def test_request_password_reset_success(monkeypatch):
 
     # Mock email sender
     monkeypatch.setattr(
-        "app.services.user_service.send_reset_email", lambda email, code: True)
+        "app.services.user_service.send_reset_email", lambda email, code: True
+    )
 
     result = await UserService.request_password_reset("test@test.com")
 

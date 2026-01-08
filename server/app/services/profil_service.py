@@ -90,7 +90,7 @@ class ProfilService:
         filtered = [r for r in restrictions if query_lower in r["name"].lower()]
         return filtered
 
-     # ----------------------- COUNTRIES -----------------------
+    # ----------------------- COUNTRIES -----------------------
     COUNTRIES_URL = "https://static.openfoodfacts.org/data/taxonomies/countries.json"
     _cached_countries: List[str] = []
 

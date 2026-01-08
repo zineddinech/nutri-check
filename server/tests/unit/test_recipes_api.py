@@ -4,12 +4,12 @@ This test mocks the LLM call (`call_gemini`) so no external API key is required.
 The module under test reads `GOOGLE_API_KEY` at import time, so the test sets
 an env var before importing the endpoint module.
 """
+
 import json
 
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-
 
 SAMPLE_RECIPE = (
     "Poulet rôti avec pommes de terre et ail\n"
@@ -24,7 +24,7 @@ def make_fake_gemini_json(payload_json_str: str):
     La fonction `extract_text` dans `recipes.py` cherche `candidates` -> `content` -> `text`.
     On renvoie donc ce shape.
     """
-    return {"candidates": [{"content": [{"text": payload_json_str}] }]}
+    return {"candidates": [{"content": [{"text": payload_json_str}]}]}
 
 
 @pytest.fixture()

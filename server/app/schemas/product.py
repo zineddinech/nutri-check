@@ -1,5 +1,6 @@
 from typing import Any, List, Optional
 
+from bson import ObjectId
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
@@ -22,7 +23,7 @@ class ProductResponse(BaseModel):
     ingredients_text: Optional[str] = None
     countries: Optional[str] = None
 
-    model_config = ConfigDict(populate_by_name=True, json_encoders={" ObjectId ": str})
+    model_config = ConfigDict(populate_by_name=True, json_encoders={ObjectId: str})
 
     @field_validator("allergens", mode="before")
     def normalize_allergens(cls, value):

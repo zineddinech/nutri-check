@@ -1,7 +1,6 @@
-from datetime import datetime, timedelta, timezone
-
 import random
 import string
+from datetime import datetime, timedelta, timezone
 from typing import List, Optional
 
 import jwt
@@ -220,7 +219,6 @@ class UserService:
         user["_id"] = str(user["_id"])
         return UserResponse(**user)
 
-
     @staticmethod
     async def remove_countries(user_id: str, countries: list[str]):
         db = get_db()
@@ -247,7 +245,7 @@ class UserService:
 
     @staticmethod
     def generate_reset_code(length: int = 6) -> str:
-        return ''.join(random.choices(string.digits, k=length))
+        return "".join(random.choices(string.digits, k=length))
 
     @staticmethod
     async def request_password_reset(email: str) -> bool:
@@ -262,10 +260,12 @@ class UserService:
 
         await db["users"].update_one(
             {"email": email},
-            {"$set": {
-                "reset_code": code,
-                "reset_expires": expires.isoformat(),
-            }}
+            {
+                "$set": {
+                    "reset_code": code,
+                    "reset_expires": expires.isoformat(),
+                }
+            },
         )
         send_reset_email(email, code)
 
@@ -295,13 +295,10 @@ class UserService:
             {
                 "$set": {
                     "hashed_password": new_hashed,
-                    "updated_at": datetime.now(timezone.utc).isoformat()
+                    "updated_at": datetime.now(timezone.utc).isoformat(),
                 },
-                "$unset": {
-                    "reset_code": "",
-                    "reset_expires": ""
-                }
-            }
+                "$unset": {"reset_code": "", "reset_expires": ""},
+            },
         )
 
         return True

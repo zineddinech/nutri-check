@@ -60,3 +60,9 @@ class FavoriteService:
             {"user_id": user_id, "product_id": product_id}
         )
         return result.deleted_count == 1
+
+    @staticmethod
+    async def get_favorite_count(product_id: str) -> int:
+        db = get_db()
+        count = await db["favorites"].count_documents({"product_id": product_id})
+        return count

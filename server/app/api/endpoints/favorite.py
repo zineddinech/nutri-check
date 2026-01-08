@@ -22,3 +22,9 @@ async def remove_favorite(user_id: str, product_id: str):
     deleted = await FavoriteService.remove_favorite(user_id, product_id)
     if not deleted:
         raise HTTPException(status_code=404, detail="Favori non trouvé")
+
+
+@router.get("/count/{product_id}")
+async def get_favorite_count(product_id: str):
+    count = await FavoriteService.get_favorite_count(product_id)
+    return {"product_id": product_id, "favorite_count": count}

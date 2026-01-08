@@ -23,6 +23,7 @@ htmlcov/
 .tox/
 poetry.lock
 server/notebooks/cache/
+compressed_images/
 
 # === DATABASE ===
 *.db

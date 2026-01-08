@@ -2,12 +2,17 @@ import React, { useState, useRef, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import "../../styles/Profil.css";
 import "../../styles/Background.css";
-import { getConnectedUser, addAllergy, removeAllergy } from "../../services/authService";
+import {
+  getConnectedUser,
+  addAllergy,
+  removeAllergy,
+} from "../../services/authService";
 import translations from "../../translations/translations.json";
 
 const CURRENT_LOCALE = "fr";
 
-const t = (englishName) => translations[CURRENT_LOCALE]?.[englishName] || englishName;
+const t = (englishName) =>
+  translations[CURRENT_LOCALE]?.[englishName] || englishName;
 const translateAllergy = (englishName) => t(englishName);
 
 const norm = (s) =>
@@ -97,7 +102,9 @@ function Profil() {
       try {
         setLoadingSuggestions(true);
 
-        const taken = new Set((user.allergies || []).map((a) => (a ?? "").toLowerCase()));
+        const taken = new Set(
+          (user.allergies || []).map((a) => (a ?? "").toLowerCase())
+        );
 
         // --- suggestions locales (match sur FR)
         const qn = norm(qRaw);
@@ -108,7 +115,9 @@ function Profil() {
 
         // --- suggestions API (EN)
         const res = await fetch(
-          `http://localhost:8000/api/profil/getAllergiesByName?query=${encodeURIComponent(qRaw)}`,
+          `http://localhost:8000/api/profil/getAllergiesByName?query=${encodeURIComponent(
+            qRaw
+          )}`,
           { signal: controller.signal }
         );
 
@@ -310,7 +319,9 @@ function Profil() {
 
               {showSuggestions && newAllergy.trim() && (
                 <div className="allergy-dropdown">
-                  {loadingSuggestions && <div className="dropdown-item">Recherche…</div>}
+                  {loadingSuggestions && (
+                    <div className="dropdown-item">Recherche…</div>
+                  )}
 
                   {!loadingSuggestions &&
                     suggestions.map((s) => (
@@ -338,7 +349,11 @@ function Profil() {
               {user.allergies?.map((a) => (
                 <div key={a} className="allergy-tag">
                   ⚠️ {translateAllergy(a)}
-                  <button className="allergy-remove-btn" onClick={() => handleRemoveAllergy(a)} disabled={updating}>
+                  <button
+                    className="allergy-remove-btn"
+                    onClick={() => handleRemoveAllergy(a)}
+                    disabled={updating}
+                  >
                     ❌
                   </button>
                 </div>

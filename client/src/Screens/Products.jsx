@@ -13,12 +13,10 @@ import {
   getUserFavorites,
 } from "../services/favoritesService";
 
-
 const ImageWithLoader = ({ src, alt, fallbackIcon }) => {
   const [isLoaded, setIsLoaded] = useState(false);
   const [hasError, setHasError] = useState(false);
 
-  
   if (!src) {
     return (
       <div className="no-image-placeholder">
@@ -47,7 +45,7 @@ const ImageWithLoader = ({ src, alt, fallbackIcon }) => {
         className={`product-image ${isLoaded ? "visible" : ""}`}
         loading="lazy"
         onLoad={() => setIsLoaded(true)}
-        onError={() => setHasError(true)} 
+        onError={() => setHasError(true)}
       />
     </>
   );
@@ -55,8 +53,12 @@ const ImageWithLoader = ({ src, alt, fallbackIcon }) => {
 
 function Products() {
   const navigate = useNavigate();
-  const [sort, setSort] = useState("nutriscore_score_asc");
+  const [sortField, setSortField] = useState("product_name");
+  const [sortOrder, setSortOrder] = useState("asc");
   const [filter, setFilter] = useState(false);
+
+  // Construire la valeur sort complète à partir du champ et de l'ordre
+  const sort = `${sortField}_${sortOrder}`;
   const [products, setProducts] = useState([]);
   const [page, setPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState("");
@@ -208,7 +210,7 @@ function Products() {
         loadingStateRef.current = false;
       }
     },
-    [activeSearch, sort, filter]
+    [activeSearch, sortField, sortOrder, filter]
   );
 
   /** ----------- Scroll infini ----------- */
@@ -273,26 +275,53 @@ function Products() {
   };
 
   /** ----------- Tri et filtrage ----------- */
-  const sortedProducts = [...products].sort((a, b) => {
-    const getName = (p) => (p.product_name ?? p.name ?? "").toString();
-    const getNutriNumber = (p) => {
-      const v = p.nutriscore_score ?? p.nutriscore;
-      const n = Number(v);
-      return Number.isFinite(n) ? n : null;
-    };
+  const sortedProducts = [...products]
+    // Filtrer les produits sans nutriscore si on trie par nutriscore
+    .filter((p) => {
+      if (sortField.includes("nutriscore")) {
+        const v = p.nutriscore_score ?? p.nutriscore;
+        const n = Number(v);
+        return Number.isFinite(n);
+      }
+      return true;
+    })
+    .sort((a, b) => {
+      const getName = (p) => (p.product_name ?? p.name ?? "").toString();
+      const getNutriNumber = (p) => {
+        const v = p.nutriscore_score ?? p.nutriscore;
+        const n = Number(v);
+        return Number.isFinite(n) ? n : null;
+      };
 
-    if (sort.includes("nutriscore")) {
-      const na = getNutriNumber(a);
-      const nb = getNutriNumber(b);
-      if (na === null && nb === null)
-        return getName(a).localeCompare(getName(b));
-      if (na === null) return 1;
-      if (nb === null) return -1;
-      return na - nb;
-    }
+      let comparison = 0;
 
-    return getName(a).localeCompare(getName(b));
-  });
+      if (
+        sortField.includes("nutriscore") ||
+        sortField.includes("product_name")
+      ) {
+        if (sortField.includes("nutriscore")) {
+          const na = getNutriNumber(a);
+          const nb = getNutriNumber(b);
+          if (na === null && nb === null) {
+            comparison = getName(a).localeCompare(getName(b));
+          } else if (na === null) {
+            comparison = 1;
+          } else if (nb === null) {
+            comparison = -1;
+          } else {
+            comparison = na - nb;
+          }
+        } else if (sortField.includes("product_name")) {
+          comparison = getName(a).localeCompare(getName(b));
+        }
+      } else {
+        // Pour les autres champs (added, updated), tri par nom par défaut
+        comparison = getName(a).localeCompare(getName(b));
+      }
+
+      // Inverser si descending
+      return sortOrder === "desc" ? -comparison : comparison;
+    });
 
   const displayedProducts = sortedProducts;
 
@@ -319,8 +348,7 @@ function Products() {
                 <>
                   <strong>{displayedProducts.length}</strong>
                   {displayedProducts.length > 1 ? " produits" : " produit"}
-                  {filter && ` (compatible)`}
-                  {activeSearch && ` pour "${activeSearch}"`}
+                  {filter}
                 </>
               )}
             </div>
@@ -347,14 +375,23 @@ function Products() {
 
           <div className="toolbar-right">
             <select
-              value={sort}
-              onChange={(e) => setSort(e.target.value)}
+              value={sortField}
+              onChange={(e) => setSortField(e.target.value)}
               className="sort-select"
             >
-              <option value="nutriscore_score_asc">Meilleur Nutri-Score</option>
-              <option value="added">Récemment ajoutés</option>
-              <option value="updated">Récemment modifiés</option>
+              <option value="nutriscore_score">Nutri-Score</option>
+              <option value="product_name">Nom du produit</option>
+              <option value="added">Date ajout</option>
+              <option value="updated">Date modification</option>
             </select>
+
+            <button
+              onClick={() => setSortOrder(sortOrder === "asc" ? "desc" : "asc")}
+              className="sort-direction-button"
+              title={sortOrder === "asc" ? "Ascendant" : "Descendant"}
+            >
+              {sortOrder === "asc" ? "↑ Ascendant" : "↓ Descendant"}
+            </button>
           </div>
         </div>
 
@@ -372,12 +409,15 @@ function Products() {
               {displayedProducts.map((product) => {
                 const code = product.code ?? product._id ?? product.id;
                 const name = product.product_name ?? product.name ?? "—";
-                const rawNutri = product.nutrition_grade_fr ?? product.nutriscore_score;
-                
-                const nutri = 
-                  (!rawNutri || rawNutri === "unknown" || rawNutri === "not-applicable") 
-                  ? "—" 
-                  : rawNutri;
+                const rawNutri =
+                  product.nutrition_grade_fr ?? product.nutriscore_score;
+
+                const nutri =
+                  !rawNutri ||
+                  rawNutri === "unknown" ||
+                  rawNutri === "not-applicable"
+                    ? "—"
+                    : rawNutri;
                 const compatibility =
                   product.compatibility ?? product.compatibility_score ?? 0;
                 const isFavorite = favorites.has(code);
@@ -400,15 +440,10 @@ function Products() {
                       {isFavorite ? "❤️" : "🤍"}
                     </button>
 
-                    <div className="compatibility">
-                      Nutriscore {nutri}
-                    </div>
+                    <div className="compatibility">Nutriscore {nutri}</div>
 
                     <div className="product-image-container">
-                      <ImageWithLoader 
-                        src={imageUrl} 
-                        alt={name} 
-                      />
+                      <ImageWithLoader src={imageUrl} alt={name} />
                     </div>
 
                     <div className="product-title">{name}</div>

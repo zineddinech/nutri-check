@@ -7,8 +7,8 @@ from fastapi.security import OAuth2PasswordRequestForm
 from app.schemas.user import Token
 
 from ...schemas.user import UserCreate, UserResponse, UserUpdate
-from ...services.user_service import UserService
 from ...services.favorite_service import FavoriteService
+from ...services.user_service import UserService
 
 router = APIRouter()
 

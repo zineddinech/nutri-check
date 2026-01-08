@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import "./../styles/Favorites.css";
 import "./../styles/Background.css";
@@ -6,54 +6,104 @@ import { getConnectedUser } from "../services/authService";
 import { getUserFavorites, removeFavorite } from "../services/favoritesService";
 import { getProductById } from "../services/productService";
 
+const ImageWithLoader = ({ src, alt, fallbackIcon }) => {
+  const [isLoaded, setIsLoaded] = useState(false);
+  const [hasError, setHasError] = useState(false);
+
+  
+  if (!src) {
+    return (
+      <div className="no-image-placeholder">
+        <span className="no-image-icon">📷</span>
+        <span>Pas d'image</span>
+      </div>
+    );
+  }
+
+  if (hasError) {
+    return (
+      <div className="no-image-placeholder">
+        <span className="no-image-icon">📷</span>
+        <span>Pas d'image</span>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      {!isLoaded && <div className="image-skeleton"></div>}
+
+      <img
+        src={src}
+        alt={alt}
+        className={`product-image ${isLoaded ? "visible" : ""}`}
+        loading="lazy"
+        onLoad={() => setIsLoaded(true)}
+        onError={() => setHasError(true)} 
+      />
+    </>
+  );
+};
+
 function Favorites() {
   const navigate = useNavigate();
   const [favorites, setFavorites] = useState([]);
   const [products, setProducts] = useState({});
-  const [images, setImages] = useState({});
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [currentUser, setCurrentUser] = useState(null);
-  const imageCache = useRef(new Map());
 
   const DEFAULT_IMAGE =
     "https://via.placeholder.com/150/e0e0e0/757575?text=Produit";
+
+  const API_BASE = "http://localhost:8000";
+  const getLocalImage = (code) => `${API_BASE}/images/${code}.jpg`;
 
   /** ----------- Charger l'utilisateur et ses favoris ----------- */
   useEffect(() => {
     const loadUserAndFavorites = async () => {
       try {
         setLoading(true);
-        
+        setError(null);
+
         // 1. Récupérer l'utilisateur connecté
         const user = await getConnectedUser();
         setCurrentUser(user);
 
-        if (user?._id) {
-          // 2. Récupérer les favoris de cet utilisateur
-          const userFavs = await getUserFavorites(user._id);
-          
-          if (Array.isArray(userFavs)) {
-            setFavorites(userFavs);
-            
-            // 3. Pour chaque favori, récupérer les détails du produit via getProductById
-            const productsData = {};
-            for (const fav of userFavs) {
-              try {
-                const productData = await getProductById(fav.product_id);
-                productsData[fav.product_id] = productData;
-              } catch (error) {
-                console.error(`Erreur chargement produit ${fav.product_id}:`, error);
-                // Fallback sur le snapshot
-                if (fav.product_snapshot) {
-                  productsData[fav.product_id] = fav.product_snapshot;
-                }
-              }
+        if (!user?._id) {
+          setError("Vous devez être connecté pour voir vos favoris");
+          setFavorites([]);
+          return;
+        }
+
+        // 2. Récupérer les favoris
+        const userFavs = await getUserFavorites(user._id);
+
+        if (!Array.isArray(userFavs)) {
+          throw new Error("Format de données invalide");
+        }
+
+        setFavorites(userFavs);
+
+        // 3. Pour chaque favori, récupérer les détails du produit
+        const productsData = {};
+        for (const fav of userFavs) {
+          try {
+            const productData = await getProductById(fav.product_id);
+            productsData[fav.product_id] = productData;
+          } catch (err) {
+            console.error(`Erreur chargement produit ${fav.product_id}:`, err);
+            if (fav.product_snapshot) {
+              productsData[fav.product_id] = fav.product_snapshot;
             }
-            setProducts(productsData);
           }
         }
-      } catch (error) {
-        console.error("Erreur chargement favoris:", error);
+        setProducts(productsData);
+      } catch (err) {
+        console.error("Erreur chargement favoris:", err);
+        setError(
+          "Erreur lors du chargement de vos favoris. Veuillez réessayer."
+        );
       } finally {
         setLoading(false);
       }
@@ -61,62 +111,6 @@ function Favorites() {
 
     loadUserAndFavorites();
   }, []);
-
-  /** ----------- Chargement des images avec cache ----------- */
-  const loadImage = useCallback(async (id, name) => {
-    if (imageCache.current.has(id)) {
-      setImages((prev) => ({ ...prev, [id]: imageCache.current.get(id) }));
-      return;
-    }
-
-    try {
-      const response = await fetch(
-        `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(
-          name
-        )}&search_simple=1&action=process&json=1&page_size=1`
-      );
-
-      if (!response.ok)
-        throw new Error(`HTTP error! status: ${response.status}`);
-
-      const data = await response.json();
-      const img =
-        data?.products?.[0]?.image_front_url ||
-        data?.products?.[0]?.image_url ||
-        DEFAULT_IMAGE;
-
-      imageCache.current.set(id, img);
-      setImages((prev) => ({ ...prev, [id]: img }));
-    } catch (error) {
-      imageCache.current.set(id, DEFAULT_IMAGE);
-      setImages((prev) => ({ ...prev, [id]: DEFAULT_IMAGE }));
-    }
-  }, []);
-
-  /** ----------- Chargement batch d'images ----------- */
-  useEffect(() => {
-    const loadImagesInBatch = async () => {
-      const batchSize = 5;
-      const productIds = Object.keys(products);
-      
-      for (let i = 0; i < productIds.length; i += batchSize) {
-        const batch = productIds.slice(i, i + batchSize);
-        await Promise.all(
-          batch.map((productId) => {
-            const product = products[productId];
-            const name = product?.product_name || product?.name || "";
-            if (productId && name && !imageCache.current.has(productId)) {
-              return loadImage(productId, name);
-            }
-            return Promise.resolve();
-          })
-        );
-        await new Promise((resolve) => setTimeout(resolve, 50));
-      }
-    };
-
-    if (Object.keys(products).length > 0) loadImagesInBatch();
-  }, [products, loadImage]);
 
   /** ----------- Supprimer un favori ----------- */
   const handleRemoveFavorite = async (e, productId) => {
@@ -126,17 +120,17 @@ function Favorites() {
 
     try {
       await removeFavorite(currentUser._id, productId);
-      setFavorites((prev) => prev.filter((fav) => fav.product_id !== productId));
-      
-      // Nettoyer aussi les produits
+      setFavorites((prev) =>
+        prev.filter((fav) => fav.product_id !== productId)
+      );
       setProducts((prev) => {
         const newProducts = { ...prev };
         delete newProducts[productId];
         return newProducts;
       });
-    } catch (error) {
-      console.error("Erreur suppression favori:", error);
-      alert("Erreur lors de la suppression du favori");
+    } catch (err) {
+      console.error("Erreur suppression favori:", err);
+      setError("Erreur lors de la suppression du favori");
     }
   };
 
@@ -145,122 +139,133 @@ function Favorites() {
     navigate(`/produits/${productId}`);
   };
 
-  /** ----------- Navigation retour ----------- */
-  const handleBackToProducts = () => {
-    navigate("/produits");
-  };
-
-  /** ----------- Rendu JSX ----------- */
   return (
-    <div className="background">
-      <div className="favorites-container">
+    <div className="favorites-container">
+      <div className="favorites-wrapper">
+        {/* En-tête */}
         <div className="favorites-header">
-          <button onClick={handleBackToProducts} className="back-button">
-            ← Retour aux produits
-          </button>
           <h1 className="favorites-title">❤️ Mes Favoris</h1>
-          <div className="favorites-count">
-            {loading ? (
-              <span>Chargement...</span>
-            ) : (
-              <>
-                <strong>{favorites.length}</strong>
-                {favorites.length > 1 ? " favoris" : " favori"}
-              </>
-            )}
-          </div>
+          <p className="favorites-subtitle">
+            {loading
+              ? "Chargement..."
+              : `${favorites.length} favori${
+                  favorites.length !== 1 ? "s" : ""
+                }`}
+          </p>
         </div>
 
-        <div className="favorites-main">
-          {loading ? (
-            <div className="loading-spinner">
-              <div className="spinner"></div>
-              <p>Chargement de vos favoris...</p>
-            </div>
-          ) : favorites.length === 0 ? (
-            <div className="empty-state">
-              <div className="empty-state__icon">💔</div>
-              <div className="empty-state__text">
-                Vous n'avez pas encore de favoris
-              </div>
-              <button
-                onClick={handleBackToProducts}
-                className="empty-state__button"
-              >
-                Découvrir des produits
-              </button>
-            </div>
-          ) : (
-            <div className="favorites-grid">
-              {favorites.map((fav) => {
-                const productId = fav.product_id;
-                const product = products[productId];
-                
-                // Si le produit n'est pas encore chargé
-                if (!product) {
-                  return null;
-                }
+        {/* Contenu principal */}
+        {loading ? (
+          // État de chargement
+          <div className="loading-state">
+            <div className="spinner"></div>
+            <p>Chargement de vos favoris...</p>
+          </div>
+        ) : error ? (
+          // État d'erreur
+          <div className="error-state">
+            <div className="error-icon">⚠️</div>
+            <p className="error-message">{error}</p>
+            <button
+              className="btn-retry"
+              onClick={() => window.location.reload()}
+            >
+              Réessayer
+            </button>
+          </div>
+        ) : favorites.length === 0 ? (
+          // État vide
+          <div className="empty-state-main">
+            <div className="empty-icon">💔</div>
+            <p className="empty-title">Aucun favori</p>
+            <p className="empty-description">
+              Commencez à ajouter vos produits préférés
+            </p>
+            <button
+              className="btn-explore"
+              onClick={() => navigate("/produits")}
+            >
+              Explorer les produits →
+            </button>
+          </div>
+        ) : (
+          // Grille de favoris
+          <div className="favorites-grid">
+            {favorites.map((fav) => {
+              const productId = fav.product_id;
+              const product = products[productId];
 
-                const name = product.product_name || product.name || "—";
-                const nutri = product.nutriscore_score || product.nutriscore || "—";
-                const imageUrl = images[productId];
-                const compatibility = product.compatibility || product.compatibility_score || 0;
+              if (!product) return null;
 
-                return (
-                  <div
-                    className="favorite-card"
-                    key={fav._id || productId}
-                    onClick={() => handleProductClick(productId)}
-                    style={{ cursor: "pointer" }}
-                  >
+              const name = product.product_name || product.name || "—";
+              const nutri =
+                product.nutriscore_score || product.nutriscore || "—";
+              const code =
+                product.code ?? product._id ?? product.id ?? productId;
+              const imageUrl = code ? getLocalImage(code) : null;
+              const compatibility =
+                product.compatibility || product.compatibility_score || 0;
+
+              return (
+                <div
+                  className="favorite-card"
+                  key={fav._id || productId}
+                  onClick={() => handleProductClick(productId)}
+                >
+                  <div className="card-floating-header">
+      
+                    {/* 1. NutriScore à Gauche */}
+                    <div className="floating-score" title={`Nutri-Score ${nutri}`}>
+                      {nutri}
+                    </div>
+
+                    {/* 2. Cœur au Centre */}
+                    <div className="floating-heart">
+                      ❤️
+                    </div>
+
+                    {/* 3. Croix à Droite */}
                     <button
-                      className="remove-favorite-button"
+                      className="floating-remove"
                       onClick={(e) => handleRemoveFavorite(e, productId)}
-                      aria-label="Retirer des favoris"
+                      title="Retirer des favoris"
                     >
-                      ❌
+                      ✕
                     </button>
+                  </div>
 
-                    <div className="favorite-badge">❤️ Favori</div>
-
-                    <div className="compatibility">
-                      Compatible à {compatibility}%
+                  <div className="product-image-container">
+                      <ImageWithLoader 
+                        src={imageUrl} 
+                        alt={name} 
+                      />
                     </div>
 
-                    <div className="product-image-container">
-                      {!imageUrl ? (
-                        <div className="image-skeleton"></div>
-                      ) : (
-                        <img
-                          src={imageUrl}
-                          alt={name}
-                          className="product-image visible"
-                          loading="lazy"
-                          onError={(e) => {
-                            e.target.src = "https://via.placeholder.com/150";
-                          }}
-                        />
-                      )}
-                    </div>
-
-                    <div className="product-title">{name}</div>
-                    <div className="nutriscore">Nutri-Score: {nutri}</div>
+                  <div className="card-content">
+                    <h3 className="product-title">{name}</h3>
                     
                     {product.brands && (
-                      <div className="product-brand">{product.brands}</div>
+                      <p className="product-brand">{product.brands}</p>
                     )}
-                    
-                    {fav.created_at && (
-                      <div className="favorite-date">
-                        Ajouté le {new Date(fav.created_at).toLocaleDateString("fr-FR")}
+
+                    {/* On garde la compatibilité en bas si besoin, mais on a enlevé le nutriscore d'ici car il est en haut */}
+                    {compatibility > 0 && (
+                      <div className="compatibility" style={{marginTop: '10px'}}>
+                        {compatibility}% compatible
                       </div>
                     )}
+
+                    {fav.created_at && (
+                      <p className="favorite-date">
+                        Ajouté le {new Date(fav.created_at).toLocaleDateString("fr-FR")}
+                      </p>
+                    )}
                   </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );

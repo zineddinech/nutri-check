@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import List, Optional
 
 from bson import ObjectId
-from pydantic import BaseModel, EmailStr, Field, field_validator
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
 
 class UserBase(BaseModel):
@@ -30,19 +30,21 @@ class UserUpdate(BaseModel):
     last_name: Optional[str] = None
     is_active: Optional[bool] = None
     allergies: Optional[List[str]] = None
+    countries: Optional[List[str]] = None
 
 
 class UserResponse(UserBase):
     id: Optional[str] = Field(alias="_id", default=None)
     is_active: bool = True
     allergies: List[str] = []
+    countries: List[str] = []
     created_at: Optional[datetime] = None  # ✅ accepte un datetime
     updated_at: Optional[datetime] = None  # ✅ idem
 
-    class Config:
-        populate_by_name = True
-        # ✅ sérialisation propre
-        json_encoders = {ObjectId: str, datetime: lambda v: v.isoformat()}
+    model_config = ConfigDict(
+        populate_by_name=True,
+        json_encoders={ObjectId: str, datetime: lambda v: v.isoformat()},
+    )
 
 
 class Token(BaseModel):

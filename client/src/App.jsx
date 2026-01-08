@@ -8,6 +8,9 @@ import ProductDetail from "./Screens/ProductDetail";
 import Register from "./Screens/Auth/Register";
 import Favorites from "./Screens/favorites";
 import Profil from "./Screens/Auth/Profil";
+import ForgotPassword from "./Screens/Auth/ForgotPassword";
+import ResetPassword from "./Screens/Auth/ResetPassword";
+import Recipes from "./Screens/Recipes";
 
 function App() {
   return (
@@ -18,10 +21,13 @@ function App() {
           <Route path="/" element={<Home />} />
           <Route path="/login" element={<Connection />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/produits" element={<Products />} />
           <Route path="/produits/:id" element={<ProductDetail />} />
           <Route path="/favorites" element={<Favorites />} />
           <Route path="/Profil" element={<Profil />} />
+          <Route path="/Recipes" element={<Recipes />} />
         </Routes>
       </Router>
     </div>

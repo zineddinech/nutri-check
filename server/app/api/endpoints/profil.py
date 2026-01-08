@@ -18,7 +18,7 @@ async def get_allergies_by_name(
     Retourne la liste des allergènes filtrés par query (partial match).
     Si query est vide, retourne tous les allergènes.
     """
-    results = await ProfilService.get_allergies_by_name(query)
+    results = await ProfilService.get_allergies_by_name(query or "")
     return results
 
 
@@ -34,4 +34,17 @@ async def get_diet_restrictions(
     Chaque restriction contient: name, limit_type, unit
     """
     results = await ProfilService.get_diet_restrictions_by_name(query)
+    return results
+
+
+# ----------------------- Countries endpoint -----------------------
+@router.get("/getCountriesByName", response_model=List[str])
+async def get_countries_by_name(
+    query: Optional[str] = Query(None, description="Partial country name")
+):
+    """
+    Retourne la liste des pays filtrés par query (partial match).
+    Si query est vide, retourne tous les allergènes.
+    """
+    results = await ProfilService.get_countries_by_name(query or "")
     return results

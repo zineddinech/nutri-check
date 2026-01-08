@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import List
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class ShoppingTripItem(BaseModel):
@@ -22,5 +22,4 @@ class ShoppingTripResponse(BaseModel):
     products: List[ShoppingTripItem]
     created_at: datetime
 
-    class Config:
-        populate_by_name = True
+    model_config = ConfigDict(populate_by_name=True)

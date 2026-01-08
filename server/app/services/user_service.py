@@ -1,9 +1,13 @@
+import random
+import string
 from datetime import datetime, timedelta, timezone
 from typing import List, Optional
 
 import jwt
 from bson import ObjectId
 from passlib.context import CryptContext
+
+from utils.email import send_reset_email
 
 from ..core.config import (ACCESS_TOKEN_EXPIRE_MINUTES, JWT_ALGORITHM,
                            JWT_SECRET_KEY)
@@ -190,7 +194,111 @@ class UserService:
         user["allergies"] = updated
         user["_id"] = str(user["_id"])
         return UserResponse(**user)
-    
-   
 
-    
+    @staticmethod
+    async def add_countries(user_id: str, countries: list[str]):
+        db = get_db()
+        user = await db["users"].find_one({"_id": ObjectId(user_id)})
+        if not user:
+            return None
+
+        existing = set(user.get("countries", []))
+        updated = list(existing.union(countries))
+
+        await db["users"].update_one(
+            {"_id": ObjectId(user_id)},
+            {
+                "$set": {
+                    "countries": updated,
+                    "updated_at": datetime.now(timezone.utc).isoformat(),
+                }
+            },
+        )
+
+        user["countries"] = updated
+        user["_id"] = str(user["_id"])
+        return UserResponse(**user)
+
+    @staticmethod
+    async def remove_countries(user_id: str, countries: list[str]):
+        db = get_db()
+        user = await db["users"].find_one({"_id": ObjectId(user_id)})
+        if not user:
+            return None
+
+        current = set(user.get("countries", []))
+        updated = [c for c in current if c not in countries]
+
+        await db["users"].update_one(
+            {"_id": ObjectId(user_id)},
+            {
+                "$set": {
+                    "countries": updated,
+                    "updated_at": datetime.now(timezone.utc).isoformat(),
+                }
+            },
+        )
+
+        user["countries"] = updated
+        user["_id"] = str(user["_id"])
+        return UserResponse(**user)
+
+    @staticmethod
+    def generate_reset_code(length: int = 6) -> str:
+        return "".join(random.choices(string.digits, k=length))
+
+    @staticmethod
+    async def request_password_reset(email: str) -> bool:
+        db = get_db()
+
+        user = await db["users"].find_one({"email": email})
+        if not user:
+            return False
+
+        code = UserService.generate_reset_code()
+        expires = datetime.now(timezone.utc) + timedelta(minutes=15)
+
+        await db["users"].update_one(
+            {"email": email},
+            {
+                "$set": {
+                    "reset_code": code,
+                    "reset_expires": expires.isoformat(),
+                }
+            },
+        )
+        send_reset_email(email, code)
+
+        return True
+
+    @staticmethod
+    async def reset_password(email: str, code: str, new_password: str) -> bool:
+        db = get_db()
+
+        user = await db["users"].find_one({"email": email})
+        if not user:
+            return False
+
+        if "reset_code" not in user or "reset_expires" not in user:
+            return False
+
+        if user["reset_code"] != code:
+            return False
+
+        if datetime.now(timezone.utc) > datetime.fromisoformat(user["reset_expires"]):
+            return False
+
+        new_hashed = UserService.hash_password(new_password)
+
+        await db["users"].update_one(
+            {"email": email},
+            {
+                "$set": {
+                    "hashed_password": new_hashed,
+                    "updated_at": datetime.now(timezone.utc).isoformat(),
+                },
+                "$unset": {"reset_code": "", "reset_expires": ""},
+            },
+        )
+
+        return True

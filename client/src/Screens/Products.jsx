@@ -13,10 +13,52 @@ import {
   getUserFavorites,
 } from "../services/favoritesService";
 
+const ImageWithLoader = ({ src, alt, fallbackIcon }) => {
+  const [isLoaded, setIsLoaded] = useState(false);
+  const [hasError, setHasError] = useState(false);
+
+  if (!src) {
+    return (
+      <div className="no-image-placeholder">
+        <span className="no-image-icon">📷</span>
+        <span>Pas d'image</span>
+      </div>
+    );
+  }
+
+  if (hasError) {
+    return (
+      <div className="no-image-placeholder">
+        <span className="no-image-icon">📷</span>
+        <span>Pas d'image</span>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      {!isLoaded && <div className="image-skeleton"></div>}
+
+      <img
+        src={src}
+        alt={alt}
+        className={`product-image ${isLoaded ? "visible" : ""}`}
+        loading="lazy"
+        onLoad={() => setIsLoaded(true)}
+        onError={() => setHasError(true)}
+      />
+    </>
+  );
+};
+
 function Products() {
   const navigate = useNavigate();
-  const [sort, setSort] = useState("nutriscore_score_asc");
+  const [sortField, setSortField] = useState("product_name");
+  const [sortOrder, setSortOrder] = useState("asc");
   const [filter, setFilter] = useState(false);
+
+  // Construire la valeur sort complète à partir du champ et de l'ordre
+  const sort = `${sortField}_${sortOrder}`;
   const [products, setProducts] = useState([]);
   const [page, setPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState("");
@@ -29,6 +71,9 @@ function Products() {
   const observerRef = useRef();
   const loadingRef = useRef(null);
   const preloadedPages = useRef(new Map());
+  const loadingStateRef = useRef(loading);
+  const pageRef = useRef(page);
+  const hasMoreRef = useRef(hasMore);
 
   const DEFAULT_IMAGE =
     "https://via.placeholder.com/150/e0e0e0/757575?text=Produit";
@@ -85,21 +130,29 @@ function Products() {
 
   /** ----------- Chargement de produits (avec préchargement) ----------- */
   const loadMoreProducts = useCallback(
-    async (fromPreload = false) => {
-      if (loading || !hasMore) return;
+    async (fromPreload = false, reset = false, pageToLoad = null) => {
+      if (loadingStateRef.current || !hasMoreRef.current) return;
+
+      const targetPage = pageToLoad ?? pageRef.current;
 
       setLoading(true);
+      loadingStateRef.current = true;
       try {
         let data;
 
-        if (fromPreload && preloadedPages.current.has(page)) {
-          data = preloadedPages.current.get(page);
-          preloadedPages.current.delete(page);
+        if (fromPreload && preloadedPages.current.has(targetPage)) {
+          data = preloadedPages.current.get(targetPage);
+          preloadedPages.current.delete(targetPage);
         } else {
           if (activeSearch.trim()) {
-            data = await getProductsSearched(activeSearch, page, 100, filter);
+            data = await getProductsSearched(
+              activeSearch,
+              targetPage,
+              100,
+              filter
+            );
           } else {
-            data = await getProductsByIndex(sort, page, 100, filter);
+            data = await getProductsByIndex(sort, targetPage, 100, filter);
           }
         }
 
@@ -109,18 +162,31 @@ function Products() {
 
         if (arr.length === 0) {
           setHasMore(false);
+          hasMoreRef.current = false;
+          if (reset) {
+            setProducts([]);
+          }
         } else {
-          setProducts((prev) => {
-            const existingIds = new Set(prev.map((p) => p._id ?? p.id));
-            const newProducts = arr.filter((p) => {
-              const id = p._id ?? p.id;
-              return !existingIds.has(id);
+          if (reset) {
+            const normalized = arr.map((p) => p);
+            setProducts(normalized);
+            setPage(targetPage + 1);
+            pageRef.current = targetPage + 1;
+          } else {
+            setProducts((prev) => {
+              const existingIds = new Set(prev.map((p) => p._id ?? p.id));
+              const newProducts = arr.filter((p) => {
+                const id = p._id ?? p.id;
+                return !existingIds.has(id);
+              });
+              return [...prev, ...newProducts];
             });
-            return [...prev, ...newProducts];
-          });
-          setPage((prev) => prev + 1);
+            const newPage = pageRef.current + 1;
+            setPage(newPage);
+            pageRef.current = newPage;
+          }
 
-          for (let next = page + 1; next <= page + 2; next++) {
+          for (let next = targetPage + 1; next <= targetPage + 2; next++) {
             if (!preloadedPages.current.has(next)) {
               (async () => {
                 try {
@@ -138,11 +204,13 @@ function Products() {
       } catch (error) {
         console.error("Erreur lors du chargement:", error);
         setHasMore(false);
+        hasMoreRef.current = false;
       } finally {
         setLoading(false);
+        loadingStateRef.current = false;
       }
     },
-    [loading, hasMore, activeSearch, page, sort]
+    [activeSearch, sortField, sortOrder, filter]
   );
 
   /** ----------- Scroll infini ----------- */
@@ -170,11 +238,13 @@ function Products() {
 
   /** ----------- Réinitialisation quand tri/recherche change ----------- */
   useEffect(() => {
-    setProducts([]);
     setPage(1);
+    pageRef.current = 1;
     setHasMore(true);
+    hasMoreRef.current = true;
     preloadedPages.current.clear();
-  }, [sort, activeSearch, filter]);
+    loadMoreProducts(false, true, 1);
+  }, [sort, activeSearch, filter, loadMoreProducts]);
 
   /** ----------- Premier chargement ----------- */
   useEffect(() => {
@@ -205,26 +275,53 @@ function Products() {
   };
 
   /** ----------- Tri et filtrage ----------- */
-  const sortedProducts = [...products].sort((a, b) => {
-    const getName = (p) => (p.product_name ?? p.name ?? "").toString();
-    const getNutriNumber = (p) => {
-      const v = p.nutriscore_score ?? p.nutriscore;
-      const n = Number(v);
-      return Number.isFinite(n) ? n : null;
-    };
+  const sortedProducts = [...products]
+    // Filtrer les produits sans nutriscore si on trie par nutriscore
+    .filter((p) => {
+      if (sortField.includes("nutriscore")) {
+        const v = p.nutriscore_score ?? p.nutriscore;
+        const n = Number(v);
+        return Number.isFinite(n);
+      }
+      return true;
+    })
+    .sort((a, b) => {
+      const getName = (p) => (p.product_name ?? p.name ?? "").toString();
+      const getNutriNumber = (p) => {
+        const v = p.nutriscore_score ?? p.nutriscore;
+        const n = Number(v);
+        return Number.isFinite(n) ? n : null;
+      };
 
-    if (sort.includes("nutriscore")) {
-      const na = getNutriNumber(a);
-      const nb = getNutriNumber(b);
-      if (na === null && nb === null)
-        return getName(a).localeCompare(getName(b));
-      if (na === null) return 1;
-      if (nb === null) return -1;
-      return na - nb;
-    }
+      let comparison = 0;
 
-    return getName(a).localeCompare(getName(b));
-  });
+      if (
+        sortField.includes("nutriscore") ||
+        sortField.includes("product_name")
+      ) {
+        if (sortField.includes("nutriscore")) {
+          const na = getNutriNumber(a);
+          const nb = getNutriNumber(b);
+          if (na === null && nb === null) {
+            comparison = getName(a).localeCompare(getName(b));
+          } else if (na === null) {
+            comparison = 1;
+          } else if (nb === null) {
+            comparison = -1;
+          } else {
+            comparison = na - nb;
+          }
+        } else if (sortField.includes("product_name")) {
+          comparison = getName(a).localeCompare(getName(b));
+        }
+      } else {
+        // Pour les autres champs (added, updated), tri par nom par défaut
+        comparison = getName(a).localeCompare(getName(b));
+      }
+
+      // Inverser si descending
+      return sortOrder === "desc" ? -comparison : comparison;
+    });
 
   const displayedProducts = sortedProducts;
 
@@ -251,8 +348,7 @@ function Products() {
                 <>
                   <strong>{displayedProducts.length}</strong>
                   {displayedProducts.length > 1 ? " produits" : " produit"}
-                  {filter && ` (compatible)`}
-                  {activeSearch && ` pour "${activeSearch}"`}
+                  {filter}
                 </>
               )}
             </div>
@@ -279,14 +375,23 @@ function Products() {
 
           <div className="toolbar-right">
             <select
-              value={sort}
-              onChange={(e) => setSort(e.target.value)}
+              value={sortField}
+              onChange={(e) => setSortField(e.target.value)}
               className="sort-select"
             >
-              <option value="nutriscore_score_asc">Meilleur Nutri-Score</option>
-              <option value="added">Récemment ajoutés</option>
-              <option value="updated">Récemment modifiés</option>
+              <option value="nutriscore_score">Nutri-Score</option>
+              <option value="product_name">Nom du produit</option>
+              <option value="added">Date ajout</option>
+              <option value="updated">Date modification</option>
             </select>
+
+            <button
+              onClick={() => setSortOrder(sortOrder === "asc" ? "desc" : "asc")}
+              className="sort-direction-button"
+              title={sortOrder === "asc" ? "Ascendant" : "Descendant"}
+            >
+              {sortOrder === "asc" ? "↑ Ascendant" : "↓ Descendant"}
+            </button>
           </div>
         </div>
 
@@ -304,13 +409,20 @@ function Products() {
               {displayedProducts.map((product) => {
                 const code = product.code ?? product._id ?? product.id;
                 const name = product.product_name ?? product.name ?? "—";
+                const rawNutri =
+                  product.nutrition_grade_fr ?? product.nutriscore_score;
+
                 const nutri =
-                  product.nutriscore_score ?? product.nutriscore ?? "—";
+                  !rawNutri ||
+                  rawNutri === "unknown" ||
+                  rawNutri === "not-applicable"
+                    ? "—"
+                    : rawNutri;
                 const compatibility =
                   product.compatibility ?? product.compatibility_score ?? 0;
                 const isFavorite = favorites.has(code);
 
-                const imageUrl = getLocalImage(code);
+                const imageUrl = code ? getLocalImage(code) : null;
 
                 return (
                   <div
@@ -328,24 +440,14 @@ function Products() {
                       {isFavorite ? "❤️" : "🤍"}
                     </button>
 
-                    <div className="compatibility">
-                      Compatible à {compatibility}%
-                    </div>
+                    <div className="compatibility">Nutriscore {nutri}</div>
 
                     <div className="product-image-container">
-                      <img
-                        src={imageUrl}
-                        alt={name}
-                        className="product-image visible"
-                        loading="lazy"
-                        onError={(e) => {
-                          e.target.src = DEFAULT_IMAGE;
-                        }}
-                      />
+                      <ImageWithLoader src={imageUrl} alt={name} />
                     </div>
 
                     <div className="product-title">{name}</div>
-                    <div className="nutriscore">Nutri-Score: {nutri}</div>
+                    <div className="nutriscore">Favorites: 10 fois</div>
                   </div>
                 );
               })}

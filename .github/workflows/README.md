@@ -15,13 +15,13 @@ The pipeline is designed for a **monorepo** containing a backend (`server`) and 
 
 ## 2. Pipeline Structure
 
-The entire configuration is managed by GitLab CI/CD.
+The entire configuration is managed by GitHub CI/CD.
 
 ### 2.1. Pipeline Flow Diagram
 
 The diagram below illustrates the logical flow of the pipeline for each component (client or server).
 
-![Pipeline Flowchart](./docs/ci_cd_flow.svg)
+![Pipeline Flowchart](docs/ci_cd_flow.svg)
 
 ### 2.2. Stages
 
@@ -36,9 +36,8 @@ The pipeline is divided into four sequential stages:
 
 For better organization, the configuration is split into several files:
 
-* **`.gitlab-ci.yml`**: The main entry point file. It defines the global `stages`, reusable templates (`extends`), and includes specific configurations via the `include` keyword.
-* **`ci/server.yml`**: Contains all jobs specific to the Python backend (`lint`, `build`, `test`, `deploy`).
-* **`ci/client.yml`**: Contains all jobs specific to the React frontend (`lint`, `build`, `test`, `preview`, `deploy`).
+* **`.github/workflows/server.yml`**: Contains all jobs specific to the Python backend (`lint`, `build`, `test`, `deploy`).
+* **`.github/workflows/client.yml`**: Contains all jobs specific to the React frontend (`lint`, `build`, `test`, `preview`, `deploy`).
 
 ### 2.4. Intelligent Monorepo (`rules:changes`)
 
@@ -73,7 +72,7 @@ The core of this pipeline's efficiency relies on the `rules:changes` keyword. Ea
 
 For the pipeline to work, some initial setup is required.
 
-### 4.1. GitLab CI/CD Variables
+### 4.1. GitHub CI/CD Variables
 
 The following variables must be configured in your project's **Settings > CI/CD > Variables**. It is crucial to mark them as **"Protected"** and **"Masked"**.
 

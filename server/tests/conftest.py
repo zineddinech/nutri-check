@@ -14,6 +14,20 @@ from pymongo import MongoClient
 
 from app.main import app
 
+# Configuration de pytest-asyncio
+pytest_plugins = ("pytest_asyncio",)
+
+
+@pytest.fixture(scope="session")
+def event_loop():
+    """Create an instance of the default event loop for each test session."""
+    import asyncio
+
+    loop = asyncio.new_event_loop()
+    yield loop
+    loop.close()
+
+
 # ============================================================
 #   FIXTURE 1 — Base MongoDB simulée
 # ============================================================
@@ -26,11 +40,11 @@ class AsyncMongoCollection:
 
     def __init__(self, collection):
         self._collection = collection
-        
+
     def find(self, *args, **kwargs):
         cursor = self._collection.find(*args, **kwargs)
         return AsyncMongoCursor(cursor)
-    
+
     def __getattr__(self, item):
         attr = getattr(self._collection, item)
         if callable(attr):

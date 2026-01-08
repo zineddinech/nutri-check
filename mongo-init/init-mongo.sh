@@ -18,11 +18,13 @@ if [ -f "$INIT_FLAG" ]; then
 fi
 
 echo "--- Starting database initialization (first run) ---"
+echo "[1/5] Vérification du drapeau d'initialisation..."
 
 # Vérifie si la collection cible existe déjà et contient des données.
 # Utilise mongosh pour exécuter une commande simple et obtenir le nombre de documents.
 # Note : Nous nous connectons sans authentification au début, car l'initialisation de l'utilisateur se fait en parallèle.
 # L'authentification sera requise pour les connexions ultérieures.
+echo "[2/5] Connexion à MongoDB et vérification de la collection..."
 COUNT=$(mongosh "$DB_NAME" --quiet --eval "db.getCollection('$COLLECTION_NAME').countDocuments()")
 
 # Si la collection contient déjà des documents, on suppose que la restauration a déjà eu lieu.
@@ -32,15 +34,20 @@ if [ "$COUNT" -gt 0 ]; then
 fi
 
 echo "Collection is empty. Starting data restore process..."
+echo "[3/5] Détermination de la source de données..."
+
+# Accepte l'URL comme argument de ligne de commande ou variable d'environnement
+DATA_SOURCE_URL="${1:-${DATA_SOURCE_URL:-}}"
 
 # Décide quel fichier de dump utiliser en fonction de la variable d'environnement.
-if [ -z "${DATA_SOURCE_URL:-}" ]; then
+if [ -z "$DATA_SOURCE_URL" ]; then
     # Si DATA_SOURCE_URL n'est pas défini, utilise l'échantillon local.
     echo "DATA_SOURCE_URL is not set. Using local sample data."
     DUMP_TO_RESTORE=$LOCAL_DUMP_FILE
 else
     # Si DATA_SOURCE_URL est défini, télécharge le fichier complet.
     echo "DATA_SOURCE_URL is set. Downloading full dataset from $DATA_SOURCE_URL..."
+    echo "[4/5] Téléchargement du dump complet (cette étape peut prendre plusieurs minutes)..."
     # Utilise curl pour télécharger le fichier. -L gère les redirections, -o spécifie le fichier de sortie.
     curl -L -o "$DOWNLOAD_DUMP_FILE" "$DATA_SOURCE_URL"
     echo "Download complete."
@@ -50,6 +57,11 @@ fi
 
 # Exécute la restauration avec le fichier de dump sélectionné.
 echo "Restoring from $DUMP_TO_RESTORE..."
+echo "[5/5] Restauration des données dans MongoDB (cette étape peut prendre plusieurs minutes)..."
+echo "Taille du fichier :"
+ls -lh "$DUMP_TO_RESTORE" | awk '{print $5, $NF}'
+echo ""
+
 mongorestore \
     --verbose \
     --gzip \
@@ -57,6 +69,8 @@ mongorestore \
     --nsFrom="off.products" \
     --nsTo="$DB_NAME.$COLLECTION_NAME" \
     --drop
+
+echo "✅ Restauration des données terminée!"
 
 # Si nous avons téléchargé un fichier, nous le nettoyons pour économiser de l'espace.
 if [ -n "${DATA_SOURCE_URL:-}" ]; then
@@ -66,5 +80,7 @@ fi
 
 # Crée le fichier drapeau pour empêcher les futures exécutions.
 touch "$INIT_FLAG"
+echo "✅ Fichier drapeau d'initialisation créé: $INIT_FLAG"
 
 echo "--- Database restored successfully and initialization flag created. ---"
+echo "✨ L'initialisation de la base de données est TERMINÉE avec succès!"

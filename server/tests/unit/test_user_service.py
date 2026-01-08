@@ -172,3 +172,42 @@ async def test_remove_allergy_from_nonexistent_user():
     """
     updated_user = await UserService.remove_allergies(str(ObjectId()), ["Milk"])
     assert updated_user is None
+
+
+@pytest.mark.asyncio
+async def test_generate_reset_code():
+    code = UserService.generate_reset_code()
+    assert len(code) == 6
+    assert code.isdigit()
+
+
+@pytest.mark.asyncio
+async def test_request_password_reset_success(monkeypatch):
+
+    fake_user = {
+        "_id": "123",
+        "email": "test@test.com",
+    }
+
+    class FakeCollection:
+        async def find_one(self, query):
+            return fake_user
+
+        async def update_one(self, *args, **kwargs):
+            return True
+
+    class FakeDB:
+        def __getitem__(self, name):
+            return FakeCollection()
+
+    # Mock get_db
+    monkeypatch.setattr("app.services.user_service.get_db", lambda: FakeDB())
+
+    # Mock email sender
+    monkeypatch.setattr(
+        "app.services.user_service.send_reset_email", lambda email, code: True
+    )
+
+    result = await UserService.request_password_reset("test@test.com")
+
+    assert result is True

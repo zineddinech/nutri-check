@@ -1,20 +1,29 @@
 from typing import Any, List, Optional
 
+from bson import ObjectId
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 # data-fields : https://static.openfoodfacts.org/data/data-fields.txt
 class ProductResponse(BaseModel):
     id: str = Field(alias="_id")
+    code: Optional[str] = None
     product_name: Optional[str] = None
     brands: Optional[str] = None
-    nutriscore_score: Optional[int] = None
-    ecoscore_score: Optional[int] = None
+    categories: Optional[str] = None
     categories_tags: Optional[List[str]] = None
+    nutrition_grade_fr: Optional[str] = None
     allergens: Optional[List[str]] = None
     url: Optional[str] = None
+    energy_100g: Optional[float] = None
+    fat_100g: Optional[float] = None
+    sugar_100g: Optional[float] = None
+    proteins_100g: Optional[float] = None
+    salt_100g: Optional[float] = None
+    ingredients_text: Optional[str] = None
+    countries: Optional[str] = None
 
-    model_config = ConfigDict(populate_by_name=True, json_encoders={" ObjectId ": str})
+    model_config = ConfigDict(populate_by_name=True, json_encoders={ObjectId: str})
 
     @field_validator("allergens", mode="before")
     def normalize_allergens(cls, value):

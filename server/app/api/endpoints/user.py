@@ -1,3 +1,4 @@
+from datetime import datetime, timedelta
 from typing import List
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
@@ -6,6 +7,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 from app.schemas.user import Token
 
 from ...schemas.user import UserCreate, UserResponse, UserUpdate
+from ...services.favorite_service import FavoriteService
 from ...services.user_service import UserService
 
 router = APIRouter()
@@ -137,17 +139,35 @@ async def remove_allergies_from_user(user_id: str, allergies: List[str] = Body(.
     return user
 
 
-@router.post("/{user_id}/favorites/{product_id}", response_model=UserResponse)
-async def add_favorite(user_id: str, product_id: str):
+@router.post("/{user_id}/countries", response_model=UserResponse)
+async def add_countries_to_user(user_id: str, countries: List[str] = Body(...)):
     """
-    Ajoute un produit aux favoris de l’utilisateur
+    Ajoute un ou plusieurs pays à un utilisateur
     """
-    user = await UserService.add_favorite(user_id, product_id)
+    user = await UserService.add_countries(user_id, countries)
     if not user:
         raise HTTPException(status_code=404, detail="Utilisateur non trouvé")
     return user
 
 
+@router.delete("/{user_id}/countries", response_model=UserResponse)
+async def remove_countries_from_user(user_id: str, countries: List[str] = Body(...)):
+    """
+    Supprime un ou plusieurs pays d’un utilisateur
+    """
+    user = await UserService.remove_countries(user_id, countries)
+    if not user:
+        raise HTTPException(status_code=404, detail="Utilisateur non trouvé")
+    return user
 
 
-
+@router.post("/{user_id}/favorites/{product_id}", response_model=UserResponse)
+async def add_favorite(user_id: str, product_id: str):
+    """
+    Ajoute un produit aux favoris de l’utilisateur
+    """
+    favorite_id = await FavoriteService.add_favorite(user_id, product_id)
+    if not favorite_id:
+        raise HTTPException(status_code=404, detail="Utilisateur ou produit non trouvé")
+    user = await UserService.get_user_by_id(user_id)
+    return user

@@ -1,7 +1,22 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import translations from "../../../translations/translations.json";
 
 const BASE_URL = "http://localhost:8000";
 const ENDPOINT_ALLERGIES = "/api/profil/getAllergiesByName"; // ?query=...
+
+const CURRENT_LOCALE = "fr";
+
+const t = (englishName) => translations[CURRENT_LOCALE]?.[englishName] || englishName;
+const translateAllergy = (englishName) => t(englishName);
+
+// Pour matcher "Oeufs" vs "Œufs", accents, casse, etc.
+const norm = (s) =>
+  (s ?? "")
+    .toString()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
 
 // Thème inline
 const TEXT = "#111";
@@ -14,29 +29,52 @@ const DANGER = "#dc2626";
 function RestrictionRow({
   row,
   index,
-  onChangeRow,     // ({ id, type, value, draft }) -> parent
+  onChangeRow, // ({ id, type, value, draft }) -> parent
   onRemoveRow,
-  takenAllergies,  // Set lowercased des allergies confirmées ailleurs
+  takenAllergies, // Set lowercased des allergies confirmées ailleurs (EN)
+  frToEn,
+  localAllergyEntries,
 }) {
   const TYPES = ["Allergie", "Régime"];
   const [draft, setDraft] = useState(row.type === "Allergie" ? (row.draft ?? row.value ?? "") : "");
   const [open, setOpen] = useState(false);
   const [focused, setFocused] = useState(false);
-  const [suggestions, setSuggestions] = useState([]);
+  const [suggestions, setSuggestions] = useState([]); // [{ en, label }]
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState("");
 
   const boxRef = useRef(null);
   const inputRef = useRef(null);
 
+  const sharedFieldStyle = { color: TEXT, background: BG, borderColor: BORDER };
+
+  const isDraftConfirmed = useMemo(() => {
+    if (row.type !== "Allergie") return true;
+    const d = draft.trim();
+    if (!d) return true;
+    if (!row.value) return false;
+
+    const en = row.value;              // valeur confirmée (EN)
+    const fr = translateAllergy(en);   // affichage attendu (FR)
+    const dn = norm(d);
+
+    return dn === norm(en) || dn === norm(fr);
+  }, [row.type, row.value, draft]);
+
+  const invalid = row.type === "Allergie" && !!draft.trim() && !isDraftConfirmed;
+
   // sync si parent change type/value/draft
   useEffect(() => {
     if (row.type === "Allergie") {
-      const next = row.draft ?? row.value ?? "";
+      const next = row.draft ?? (row.value ? translateAllergy(row.value) : "");
       setDraft(next);
-      if (row.value && next.trim().toLowerCase() === row.value.toLowerCase()) {
-        setOpen(false);
-        setSuggestions([]);
+
+      if (row.value) {
+        const dn = norm(next);
+        if (dn === norm(row.value) || dn === norm(translateAllergy(row.value))) {
+          setOpen(false);
+          setSuggestions([]);
+        }
       }
     } else {
       setDraft("");
@@ -44,6 +82,43 @@ function RestrictionRow({
       setSuggestions([]);
     }
   }, [row.type, row.value, row.draft]);
+
+  const onTypeChange = (nextType) => {
+    onChangeRow({ ...row, type: nextType, value: "", draft: "" });
+    setDraft("");
+    setOpen(false);
+    setSuggestions([]);
+  };
+
+  const onInputChange = (val) => {
+    setDraft(val);
+
+    // 1) si ça correspond à un FR exact -> on "confirme" en EN
+    const maybeEn = frToEn?.get(norm(val));
+    if (maybeEn) {
+      onChangeRow({ ...row, draft: val, value: maybeEn });
+      setOpen(false);
+      setSuggestions([]);
+      return;
+    }
+
+    // 2) si ça correspond à l'EN exact (ou à sa traduction FR), on garde value
+    const sameAsEn = row.value && norm(val) === norm(row.value);
+    const sameAsFr = row.value && norm(val) === norm(translateAllergy(row.value));
+    onChangeRow({ ...row, draft: val, value: (sameAsEn || sameAsFr) ? row.value : "" });
+
+    setOpen(!!val.trim() && focused);
+  };
+
+  const selectAllergy = (englishName) => {
+    const frLabel = translateAllergy(englishName);
+    onChangeRow({ ...row, type: "Allergie", value: englishName, draft: frLabel });
+    setDraft(frLabel);
+    setSuggestions([]);
+    setOpen(false);
+    setFocused(false);
+    inputRef.current?.blur();
+  };
 
   // fetch suggestions (debounce) uniquement si Allergie + focus
   useEffect(() => {
@@ -57,8 +132,17 @@ function RestrictionRow({
       return;
     }
 
+    // si c'est un match FR exact -> on n'a pas besoin d'ouvrir la liste
+    const exactEn = frToEn?.get(norm(q));
+    if (exactEn) {
+      setSuggestions([]);
+      setOpen(false);
+      setErr("");
+      return;
+    }
+
     const ctl = new AbortController();
-    const t = setTimeout(async () => {
+    const timer = setTimeout(async () => {
       try {
         setLoading(true);
         setErr("");
@@ -78,18 +162,43 @@ function RestrictionRow({
         else if (Array.isArray(data?.results)) list = data.results.map(pick);
         else if (Array.isArray(data?.allergies)) list = data.allergies.map(pick);
 
-        const current = (row.value ?? "").toLowerCase();
-        const uniq = Array.from(new Set(list.filter(Boolean)));
-        const filtered = uniq.filter((x) => {
-          const lx = x.toLowerCase();
-          return !takenAllergies.has(lx) || lx === current;
-        });
+        const currentEn = (row.value ?? "").toLowerCase();
+        const uniqEn = Array.from(new Set(list.filter(Boolean)));
 
-        if (row.value && q.toLowerCase() === current) {
+        // API suggestions (EN -> label FR)
+        const apiSuggestions = uniqEn
+          .filter((en) => {
+            const lx = en.toLowerCase();
+            return !takenAllergies.has(lx) || lx === currentEn;
+          })
+          .map((en) => ({ en, label: translateAllergy(en) }));
+
+        // Local suggestions (match sur FR)
+        const qn = norm(q);
+        const localSuggestions = (localAllergyEntries || [])
+          .filter(({ fr }) => norm(fr).includes(qn))
+          .filter(({ en }) => {
+            const lx = en.toLowerCase();
+            return !takenAllergies.has(lx) || lx === currentEn;
+          })
+          .map(({ en }) => ({ en, label: translateAllergy(en) }));
+
+        // merge + dedup par EN (priorité local)
+        const merged = [];
+        const seen = new Set();
+        for (const s of [...localSuggestions, ...apiSuggestions]) {
+          const k = s.en.toLowerCase();
+          if (seen.has(k)) continue;
+          seen.add(k);
+          merged.push(s);
+        }
+
+        // si déjà confirmé (draft correspond à value) -> ferme
+        if (row.value && (norm(q) === norm(row.value) || norm(q) === norm(translateAllergy(row.value)))) {
           setSuggestions([]);
           setOpen(false);
         } else {
-          setSuggestions(filtered);
+          setSuggestions(merged);
           setOpen(true);
         }
       } catch (e) {
@@ -104,10 +213,10 @@ function RestrictionRow({
     }, 300);
 
     return () => {
-      clearTimeout(t);
+      clearTimeout(timer);
       ctl.abort();
     };
-  }, [draft, focused, row.type, row.value, takenAllergies]);
+  }, [draft, focused, row.type, row.value, takenAllergies, frToEn, localAllergyEntries]);
 
   // close on outside click
   useEffect(() => {
@@ -122,38 +231,6 @@ function RestrictionRow({
     return () => document.removeEventListener("mousedown", onDocClick);
   }, []);
 
-  const sharedFieldStyle = { color: TEXT, background: BG, borderColor: BORDER };
-
-  const invalid =
-    row.type === "Allergie" &&
-    !!draft.trim() &&
-    (!row.value || draft.trim().toLowerCase() !== row.value.toLowerCase());
-
-  const onTypeChange = (nextType) => {
-    // reset value/draft en changeant le type
-    onChangeRow({ ...row, type: nextType, value: "", draft: "" });
-    setDraft("");
-    setOpen(false);
-    setSuggestions([]);
-  };
-
-  const onInputChange = (val) => {
-    setDraft(val);
-    // si la saisie diffère de la valeur confirmée -> déconfirme
-    const same = row.value && val.trim().toLowerCase() === row.value.toLowerCase();
-    onChangeRow({ ...row, draft: val, value: same ? row.value : "" });
-    setOpen(!!val.trim() && focused);
-  };
-
-  const selectAllergy = (name) => {
-    onChangeRow({ ...row, type: "Allergie", value: name, draft: name });
-    setDraft(name);
-    setSuggestions([]);
-    setOpen(false);
-    setFocused(false);
-    inputRef.current?.blur();
-  };
-
   return (
     <div className="row" style={{ display: "flex", gap: 12, alignItems: "flex-start" }} ref={boxRef}>
       {/* Type */}
@@ -164,7 +241,11 @@ function RestrictionRow({
           onChange={(e) => onTypeChange(e.target.value)}
           style={sharedFieldStyle}
         >
-          {TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+          {TYPES.map((tp) => (
+            <option key={tp} value={tp}>
+              {tp}
+            </option>
+          ))}
         </select>
       </div>
 
@@ -182,11 +263,24 @@ function RestrictionRow({
               onFocus={() => {
                 setFocused(true);
                 const q = draft.trim();
-                if (row.value && q.toLowerCase() === row.value.toLowerCase()) {
+                if (row.value && (norm(q) === norm(row.value) || norm(q) === norm(translateAllergy(row.value)))) {
                   setOpen(false);
                   return;
                 }
                 setOpen(!!q);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  const en = frToEn?.get(norm(draft));
+                  if (en) {
+                    e.preventDefault();
+                    selectAllergy(en);
+                  }
+                }
+              }}
+              onBlur={() => {
+                const en = frToEn?.get(norm(draft));
+                if (en) selectAllergy(en);
               }}
               placeholder="Rechercher une allergie…"
               autoComplete="off"
@@ -224,32 +318,36 @@ function RestrictionRow({
               >
                 {loading && <div style={{ padding: 12, fontSize: 14, color: "#666" }}>Recherche…</div>}
                 {!loading && err && <div style={{ padding: 12, fontSize: 14, color: DANGER }}>{err}</div>}
+
                 {!loading && !err && suggestions.length === 0 && draft.trim() !== "" && (
                   <div style={{ padding: 12, fontSize: 14, color: "#666" }}>
                     Aucun résultat pour “{draft.trim()}”.
                   </div>
                 )}
-                {!loading && !err && suggestions.map((s) => (
-                  <button
-                    key={`${index}-${s}`}
-                    type="button"
-                    onClick={() => selectAllergy(s)}
-                    style={{
-                      display: "block",
-                      width: "100%",
-                      textAlign: "left",
-                      padding: "10px 12px",
-                      border: "none",
-                      background: BG,
-                      cursor: "pointer",
-                      fontSize: 14,
-                      color: TEXT,
-                    }}
-                    onMouseDown={(e) => e.preventDefault()}
-                  >
-                    {s}
-                  </button>
-                ))}
+
+                {!loading &&
+                  !err &&
+                  suggestions.map((s) => (
+                    <button
+                      key={`${index}-${s.en}`}
+                      type="button"
+                      onClick={() => selectAllergy(s.en)}
+                      style={{
+                        display: "block",
+                        width: "100%",
+                        textAlign: "left",
+                        padding: "10px 12px",
+                        border: "none",
+                        background: BG,
+                        cursor: "pointer",
+                        fontSize: 14,
+                        color: TEXT,
+                      }}
+                      onMouseDown={(e) => e.preventDefault()}
+                    >
+                      {s.label}
+                    </button>
+                  ))}
               </div>
             )}
           </>
@@ -275,24 +373,40 @@ function RestrictionRow({
 }
 
 // ---- Étape : un seul “+”, mais 2 listes en sortie ----
-export default function StepRestrictions({
-  allergies, setAllergies,
-  regimes, setRegimes,
-  onPrev, onNext
-}) {
+export default function StepRestrictions({ allergies, setAllergies, regimes, setRegimes, onPrev, onNext }) {
+  const frToEn = useMemo(() => {
+    const map = new Map();
+    const dict = translations[CURRENT_LOCALE] || {};
+    for (const [en, fr] of Object.entries(dict)) {
+      map.set(norm(fr), en);
+    }
+    return map;
+  }, []);
+
+  const localAllergyEntries = useMemo(() => {
+    const dict = translations[CURRENT_LOCALE] || {};
+    return Object.entries(dict).map(([en, fr]) => ({ en, fr: fr || en }));
+  }, []);
+
   // rows UI unifiées (type choisi par ligne)
   const [rows, setRows] = useState(() => {
-    const fromAllergies = (allergies || []).map((v) => ({ id: crypto.randomUUID(), type: "Allergie", value: v, draft: v }));
-    const fromRegimes   = (regimes || []).map((v) => ({ id: crypto.randomUUID(), type: "Régime",   value: v, draft: v }));
-    return (fromAllergies.length || fromRegimes.length)
+    const fromAllergies = (allergies || []).map((v) => ({
+      id: crypto.randomUUID(),
+      type: "Allergie",
+      value: v, // EN
+      draft: translateAllergy(v), // FR
+    }));
+    const fromRegimes = (regimes || []).map((v) => ({ id: crypto.randomUUID(), type: "Régime", value: v, draft: v }));
+
+    return fromAllergies.length || fromRegimes.length
       ? [...fromAllergies, ...fromRegimes]
       : [{ id: crypto.randomUUID(), type: "Allergie", value: "", draft: "" }];
   });
 
-  // allergies confirmées -> Set lowercased pour filtrer les doublons dans les suggestions
+  // allergies confirmées -> Set lowercased EN pour filtrer les doublons dans les suggestions
   const takenAllergies = useMemo(() => {
     const s = new Set();
-    (allergies || []).forEach((a) => s.add(a.toLowerCase()));
+    (allergies || []).forEach((a) => s.add((a ?? "").toLowerCase()));
     return s;
   }, [allergies]);
 
@@ -304,11 +418,12 @@ export default function StepRestrictions({
       const copy = rs.slice();
       const removed = copy.splice(idx, 1)[0];
       if (copy.length === 0) copy.push({ id: crypto.randomUUID(), type: "Allergie", value: "", draft: "" });
+
       // purge côté listes
       if (removed?.type === "Allergie" && removed.value) {
-        setAllergies((list) => list.filter((x) => x.toLowerCase() !== removed.value.toLowerCase()));
+        setAllergies((list) => list.filter((x) => (x ?? "").toLowerCase() !== removed.value.toLowerCase()));
       } else if (removed?.type === "Régime" && removed.value) {
-        setRegimes((list) => list.filter((x) => x.toLowerCase() !== removed.value.toLowerCase()));
+        setRegimes((list) => list.filter((x) => (x ?? "").toLowerCase() !== removed.value.toLowerCase()));
       }
       return copy;
     });
@@ -316,62 +431,81 @@ export default function StepRestrictions({
 
   const changeRow = (idx, nextRow) => {
     setRows((rs) => {
-      const prev = rs[idx];
       const copy = rs.slice();
       copy[idx] = nextRow;
       return copy;
     });
 
     // Synchronise les 2 listes de sortie :
-    // 1) si le type change, on retire l’ancienne value de sa liste d’origine
-    // 2) on ajoute la nouvelle value confirmée (si non vide) dans la bonne liste, sans doublon
     setAllergies((prev) => {
       let out = prev;
+
       // retirer ancienne valeur si elle était en allergies et qu'on l'a déconfirmée ou changé de type
-      if ((rows[idx]?.type === "Allergie") && rows[idx]?.value && (nextRow.type !== "Allergie" || nextRow.value.toLowerCase() !== rows[idx].value.toLowerCase())) {
-        out = prev.filter((x) => x.toLowerCase() !== rows[idx].value.toLowerCase());
+      if (
+        rows[idx]?.type === "Allergie" &&
+        rows[idx]?.value &&
+        (nextRow.type !== "Allergie" || (nextRow.value ?? "").toLowerCase() !== rows[idx].value.toLowerCase())
+      ) {
+        out = prev.filter((x) => (x ?? "").toLowerCase() !== rows[idx].value.toLowerCase());
       }
+
       // ajouter la nouvelle confirmée si Allergie
       if (nextRow.type === "Allergie" && nextRow.value) {
-        const exists = out.some((x) => x.toLowerCase() === nextRow.value.toLowerCase());
-        if (!exists) out = [...out, nextRow.value];
+        const exists = out.some((x) => (x ?? "").toLowerCase() === nextRow.value.toLowerCase());
+        if (!exists) out = [...out, nextRow.value]; // EN
       }
+
       // dédup sécurité
-      const dedup = Array.from(new Set(out.map((x) => x.trim()))).filter(Boolean);
-      return dedup;
+      return Array.from(new Set(out.map((x) => (x ?? "").trim()))).filter(Boolean);
     });
 
     setRegimes((prev) => {
       let out = prev;
-      if ((rows[idx]?.type === "Régime") && rows[idx]?.value && (nextRow.type !== "Régime" || nextRow.value.toLowerCase() !== rows[idx].value.toLowerCase())) {
-        out = prev.filter((x) => x.toLowerCase() !== rows[idx].value.toLowerCase());
+
+      if (
+        rows[idx]?.type === "Régime" &&
+        rows[idx]?.value &&
+        (nextRow.type !== "Régime" || (nextRow.value ?? "").toLowerCase() !== rows[idx].value.toLowerCase())
+      ) {
+        out = prev.filter((x) => (x ?? "").toLowerCase() !== rows[idx].value.toLowerCase());
       }
+
       if (nextRow.type === "Régime" && nextRow.value) {
-        const exists = out.some((x) => x.toLowerCase() === nextRow.value.toLowerCase());
+        const exists = out.some((x) => (x ?? "").toLowerCase() === nextRow.value.toLowerCase());
         if (!exists) out = [...out, nextRow.value];
       }
-      const dedup = Array.from(new Set(out.map((x) => x.trim()))).filter(Boolean);
-      return dedup;
+
+      return Array.from(new Set(out.map((x) => (x ?? "").trim()))).filter(Boolean);
     });
   };
 
-  // Invalid si une ligne Allergie a du texte non confirmé (draft != value)
-  const hasInvalid = rows.some((r) =>
-    r.type === "Allergie" && !!(r.draft && r.draft.trim()) &&
-    (!r.value || r.draft.trim().toLowerCase() !== r.value.toLowerCase())
-  );
+  // Invalid si une ligne Allergie a du texte non confirmé
+  const hasInvalid = rows.some((r) => {
+    if (r.type !== "Allergie") return false;
+    const d = (r.draft ?? "").trim();
+    if (!d) return false;
+    if (!r.value) return true; // pas confirmé
+
+    const en = r.value;
+    const fr = translateAllergy(en);
+    const dn = norm(d);
+    return !(dn === norm(en) || dn === norm(fr));
+  });
 
   const canNext = !hasInvalid;
 
-  // dédup sécurité globale allergies
+  // dédup sécurité globale allergies (EN)
   useEffect(() => {
     if (!allergies?.length) return;
     const seen = new Set();
     const filtered = [];
     let changed = false;
     for (const a of allergies) {
-      const k = a.toLowerCase();
-      if (seen.has(k)) { changed = true; continue; }
+      const k = (a ?? "").toLowerCase();
+      if (seen.has(k)) {
+        changed = true;
+        continue;
+      }
       seen.add(k);
       filtered.push(a);
     }
@@ -382,8 +516,8 @@ export default function StepRestrictions({
   return (
     <div className="form">
       <p style={{ marginTop: 0, color: "#666" }}>
-        Un seul “+” pour ajouter une ligne. Choisis <b>Allergie</b> ou <b>Régime</b> par ligne. 
-        Pour les allergies, tape puis sélectionne dans la liste.
+        Un seul “+” pour ajouter une ligne. Choisis <b>Allergie</b> ou <b>Régime</b> par ligne. Pour les allergies, tape
+        puis sélectionne dans la liste.
       </p>
 
       <div className="restrictions-list" style={{ display: "grid", gap: 12, marginTop: 12 }}>
@@ -395,6 +529,8 @@ export default function StepRestrictions({
             onChangeRow={(next) => changeRow(idx, next)}
             onRemoveRow={() => removeRow(idx)}
             takenAllergies={takenAllergies}
+            frToEn={frToEn}
+            localAllergyEntries={localAllergyEntries}
           />
         ))}
       </div>
@@ -405,10 +541,19 @@ export default function StepRestrictions({
           className="button"
           onClick={addRow}
           style={{
-            width: 44, height: 44, borderRadius: 8,
-            backgroundColor: "#c8ff95", color: "#16be00", border: "none",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            padding: 0, fontSize: 32, fontWeight: 700, lineHeight: 1,
+            width: 44,
+            height: 44,
+            borderRadius: 8,
+            backgroundColor: "#c8ff95",
+            color: "#16be00",
+            border: "none",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 0,
+            fontSize: 32,
+            fontWeight: 700,
+            lineHeight: 1,
           }}
           title="Ajouter une ligne"
         >

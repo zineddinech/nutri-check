@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 
 from bson import ObjectId
 from fastapi import HTTPException, status
@@ -56,7 +56,7 @@ class ShoppingTripService:
             "average_nutriscore_grade": avg_letter,
             "nutriscore_count": len(nutri_scores),
             "total_products": len(valid_products),
-            "created_at": datetime.utcnow().isoformat(),
+            "created_at": datetime.now(timezone.utc).isoformat(),
         }
 
         result = await db["shopping_trips"].insert_one(trip_doc)

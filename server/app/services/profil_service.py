@@ -89,3 +89,42 @@ class ProfilService:
         query_lower = query.lower()
         filtered = [r for r in restrictions if query_lower in r["name"].lower()]
         return filtered
+
+    # ----------------------- COUNTRIES -----------------------
+    COUNTRIES_URL = "https://static.openfoodfacts.org/data/taxonomies/countries.json"
+    _cached_countries: List[str] = []
+
+    @classmethod
+    async def _fetch_countries(cls) -> List[str]:
+        """
+        Télécharge la liste des pays depuis OpenFoodFacts
+        et la met en cache pour éviter les appels répétés.
+        """
+        if cls._cached_countries:
+            return cls._cached_countries
+
+        async with httpx.AsyncClient() as client:
+            response = await client.get(cls.COUNTRIES_URL)
+            response.raise_for_status()
+            data = response.json()
+
+        countries = []
+        for item in data.values():
+            name_dict = item.get("name", {})
+            if "en" in name_dict:
+                countries.append(name_dict["en"])
+
+        cls._cached_countries = countries
+        return countries
+
+    @classmethod
+    async def get_countries_by_name(cls, query: str) -> List[str]:
+        """
+        Filtre les pays par correspondance partielle.
+        """
+        countries = await cls._fetch_countries()
+        if not query:
+            return countries
+
+        q = query.lower()
+        return [c for c in countries if q in c.lower()]

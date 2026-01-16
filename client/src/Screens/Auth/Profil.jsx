@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useMemo } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import "../../styles/Profil.css";
 import "../../styles/Background.css";
@@ -6,52 +6,126 @@ import {
   getConnectedUser,
   addAllergy,
   removeAllergy,
+  addCountry,
+  removeCountry,
 } from "../../services/authService";
-import translations from "../../translations/translations.json";
-
-const CURRENT_LOCALE = "fr";
-
-const t = (englishName) =>
-  translations[CURRENT_LOCALE]?.[englishName] || englishName;
-const translateAllergy = (englishName) => t(englishName);
-
-const norm = (s) =>
-  (s ?? "")
-    .toString()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .trim();
 
 function Profil() {
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // input affiché (FR)
+  // Allergies
   const [newAllergy, setNewAllergy] = useState("");
+  const [allergySuggestions, setAllergySuggestions] = useState([]);
+  const [showAllergyDropdown, setShowAllergyDropdown] = useState(false);
+  const [loadingAllergySuggestions, setLoadingAllergySuggestions] =
+    useState(false);
+  const allergyDropdownRef = useRef(null);
 
-  // suggestions = [{ en, label }]
-  const [suggestions, setSuggestions] = useState([]);
-  const [showSuggestions, setShowSuggestions] = useState(false);
-  const [loadingSuggestions, setLoadingSuggestions] = useState(false);
-  const [updating, setUpdating] = useState(false);
+  // Countries
+  const [newCountry, setNewCountry] = useState("");
+  const [countrySuggestions, setCountrySuggestions] = useState([]);
+  const [showCountryDropdown, setShowCountryDropdown] = useState(false);
+  const [loadingCountrySuggestions, setLoadingCountrySuggestions] =
+    useState(false);
+  const countryDropdownRef = useRef(null);
 
-  const dropdownRef = useRef(null);
-
-  const frToEn = useMemo(() => {
-    const map = new Map();
-    const dict = translations[CURRENT_LOCALE] || {};
-    for (const [en, fr] of Object.entries(dict)) {
-      map.set(norm(fr), en);
+  useEffect(() => {
+    if (!newAllergy.trim()) {
+      setAllergySuggestions([]);
+      return;
     }
-    return map;
-  }, []);
+    const controller = new AbortController();
+    const t = setTimeout(async () => {
+      try {
+        setLoadingAllergySuggestions(true);
+        const res = await fetch(
+          `http://localhost:8000/api/profil/getAllergiesByName?query=${encodeURIComponent(
+            newAllergy.trim()
+          )}`,
+          { signal: controller.signal }
+        );
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        const data = await res.json();
+        let list = Array.isArray(data)
+          ? data
+          : Array.isArray(data?.allergies)
+          ? data.allergies
+          : [];
+        const taken = new Set(
+          (user?.allergies || []).map((a) => a.toLowerCase())
+        );
+        const filtered = Array.from(new Set(list))
+          .filter(Boolean)
+          .filter((x) => !taken.has(x.toLowerCase()));
+        setAllergySuggestions(filtered);
+        setShowAllergyDropdown(true);
+      } catch (e) {
+        // silencieux si abort ou erreur
+      } finally {
+        setLoadingAllergySuggestions(false);
+      }
+    }, 250);
+    return () => {
+      clearTimeout(t);
+      controller.abort();
+    };
+  }, [newAllergy, user]);
 
-  const localAllergyEntries = useMemo(() => {
-    const dict = translations[CURRENT_LOCALE] || {};
-    // [{ en: "Eggs", fr: "Œufs" }, ...]
-    return Object.entries(dict).map(([en, fr]) => ({ en, fr: fr || en }));
+  useEffect(() => {
+    if (!newCountry.trim()) {
+      setCountrySuggestions([]);
+      return;
+    }
+    const controller = new AbortController();
+    const t = setTimeout(async () => {
+      try {
+        setLoadingCountrySuggestions(true);
+        const res = await fetch(
+          `http://localhost:8000/api/profil/getCountriesByName?query=${encodeURIComponent(
+            newCountry.trim()
+          )}`,
+          { signal: controller.signal }
+        );
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        const data = await res.json();
+        const list = Array.isArray(data) ? data : [];
+        const taken = new Set(
+          (user?.countries || []).map((c) => c.toLowerCase())
+        );
+        const filtered = Array.from(new Set(list))
+          .filter(Boolean)
+          .filter((x) => !taken.has(x.toLowerCase()));
+        setCountrySuggestions(filtered);
+        setShowCountryDropdown(true);
+      } catch (e) {
+        // silencieux si abort ou erreur
+      } finally {
+        setLoadingCountrySuggestions(false);
+      }
+    }, 250);
+    return () => {
+      clearTimeout(t);
+      controller.abort();
+    };
+  }, [newCountry, user]);
+
+  useEffect(() => {
+    function onDocClick(e) {
+      if (
+        allergyDropdownRef.current &&
+        !allergyDropdownRef.current.contains(e.target)
+      )
+        setShowAllergyDropdown(false);
+      if (
+        countryDropdownRef.current &&
+        !countryDropdownRef.current.contains(e.target)
+      )
+        setShowCountryDropdown(false);
+    }
+    document.addEventListener("mousedown", onDocClick);
+    return () => document.removeEventListener("mousedown", onDocClick);
   }, []);
 
   useEffect(() => {
@@ -59,12 +133,10 @@ function Profil() {
       try {
         setLoading(true);
         const token = localStorage.getItem("jwtToken");
-
         if (!token) {
           navigate("/login");
           return;
         }
-
         const userData = await getConnectedUser();
         setUser(userData);
       } catch (error) {
@@ -74,144 +146,8 @@ function Profil() {
         setLoading(false);
       }
     };
-
     loadUser();
   }, [navigate]);
-
-  // Suggestions (merge local FR + API EN)
-  useEffect(() => {
-    if (!user) return;
-
-    const qRaw = newAllergy.trim();
-    if (!qRaw) {
-      setSuggestions([]);
-      setShowSuggestions(false);
-      return;
-    }
-
-    // si match FR exact -> pas besoin de dropdown
-    const exactEn = frToEn.get(norm(qRaw));
-    if (exactEn) {
-      setSuggestions([]);
-      setShowSuggestions(false);
-      return;
-    }
-
-    const controller = new AbortController();
-    const timer = setTimeout(async () => {
-      try {
-        setLoadingSuggestions(true);
-
-        const taken = new Set(
-          (user.allergies || []).map((a) => (a ?? "").toLowerCase())
-        );
-
-        // --- suggestions locales (match sur FR)
-        const qn = norm(qRaw);
-        const localSuggestions = localAllergyEntries
-          .filter(({ fr }) => norm(fr).includes(qn))
-          .filter(({ en }) => !taken.has(en.toLowerCase()))
-          .map(({ en }) => ({ en, label: translateAllergy(en) }));
-
-        // --- suggestions API (EN)
-        const res = await fetch(
-          `http://localhost:8000/api/profil/getAllergiesByName?query=${encodeURIComponent(
-            qRaw
-          )}`,
-          { signal: controller.signal }
-        );
-
-        let apiSuggestions = [];
-        if (res.ok) {
-          const data = await res.json();
-          let list = [];
-          if (Array.isArray(data)) list = data;
-          else if (Array.isArray(data?.allergies)) list = data.allergies;
-
-          const uniqEn = Array.from(new Set(list.filter(Boolean)));
-
-          apiSuggestions = uniqEn
-            .filter((en) => !taken.has(en.toLowerCase()))
-            .map((en) => ({ en, label: translateAllergy(en) }));
-        }
-
-        // merge + dedup (priorité local)
-        const merged = [];
-        const seen = new Set();
-        for (const s of [...localSuggestions, ...apiSuggestions]) {
-          const k = s.en.toLowerCase();
-          if (seen.has(k)) continue;
-          seen.add(k);
-          merged.push(s);
-        }
-
-        setSuggestions(merged);
-        setShowSuggestions(true);
-      } catch (e) {
-        // ignore AbortError
-      } finally {
-        setLoadingSuggestions(false);
-      }
-    }, 250);
-
-    return () => {
-      clearTimeout(timer);
-      controller.abort();
-    };
-  }, [newAllergy, user, frToEn, localAllergyEntries]);
-
-  // click outside
-  useEffect(() => {
-    function handleClickOutside(event) {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-        setShowSuggestions(false);
-      }
-    }
-
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, []);
-
-  const handleLogout = () => {
-    localStorage.removeItem("jwtToken");
-    navigate("/login");
-  };
-
-  const handleAddAllergyEnglish = async (englishName) => {
-    if (!user?._id || !englishName) return;
-    try {
-      setUpdating(true);
-      const updatedUser = await addAllergy(user._id, [englishName]); // EN envoyé
-      setUser(updatedUser);
-      setNewAllergy(""); // input FR reset
-      setSuggestions([]);
-      setShowSuggestions(false);
-    } finally {
-      setUpdating(false);
-    }
-  };
-
-  const handleRemoveAllergy = async (englishName) => {
-    if (!user?._id || !englishName) return;
-    try {
-      setUpdating(true);
-      const updatedUser = await removeAllergy(user._id, [englishName]); // EN
-      setUser(updatedUser);
-    } finally {
-      setUpdating(false);
-    }
-  };
-
-  const tryConfirmFromFrench = async () => {
-    const q = newAllergy.trim();
-    if (!q) return;
-    const en = frToEn.get(norm(q));
-    if (en) {
-      await handleAddAllergyEnglish(en);
-    }
-  };
 
   if (loading) {
     return (
@@ -225,9 +161,33 @@ function Profil() {
       </div>
     );
   }
-
   if (!user) return null;
 
+  // allergies handlers
+  const handleAddAllergyFromList = async (name) => {
+    const updatedUser = await addAllergy(user._id, [name]);
+    setUser(updatedUser);
+    setNewAllergy("");
+    setAllergySuggestions([]);
+    setShowAllergyDropdown(false);
+  };
+  const handleRemoveAllergy = async (name) => {
+    const updatedUser = await removeAllergy(user._id, [name]);
+    setUser(updatedUser);
+  };
+
+  // countries handlers
+  const handleAddCountry = async (name) => {
+    const updatedUser = await addCountry(user._id, [name]);
+    setUser(updatedUser);
+    setNewCountry("");
+    setCountrySuggestions([]);
+    setShowCountryDropdown(false);
+  };
+  const handleRemoveCountry = async (name) => {
+    const updatedUser = await removeCountry(user._id, [name]);
+    setUser(updatedUser);
+  };
   return (
     <div className="background">
       <div className="profil-container">
@@ -293,66 +253,46 @@ function Profil() {
           <div className="profil-section">
             <h2 className="section-title">🚫 Allergies et intolérances</h2>
 
-            {/* Input autosuggest */}
-            <div ref={dropdownRef} className="allergy-input-wrapper">
+            <div ref={allergyDropdownRef} className="input-wrapper">
               <input
                 type="text"
-                className="allergy-input"
+                className="input"
                 placeholder="Rechercher une allergie…"
                 value={newAllergy}
                 onChange={(e) => setNewAllergy(e.target.value)}
-                onFocus={() => {
-                  if (newAllergy.trim()) setShowSuggestions(true);
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    tryConfirmFromFrench();
-                  }
-                }}
-                onBlur={() => {
-                  // si l'utilisateur a tapé exactement un FR connu -> on ajoute
-                  tryConfirmFromFrench();
-                }}
-                disabled={updating}
+                onFocus={() => setShowAllergyDropdown(true)}
               />
 
-              {showSuggestions && newAllergy.trim() && (
-                <div className="allergy-dropdown">
-                  {loadingSuggestions && (
+              {showAllergyDropdown && newAllergy.trim() && (
+                <div className="dropdown">
+                  {loadingAllergySuggestions && (
                     <div className="dropdown-item">Recherche…</div>
                   )}
-
-                  {!loadingSuggestions &&
-                    suggestions.map((s) => (
+                  {!loadingAllergySuggestions &&
+                    allergySuggestions.map((s) => (
                       <button
-                        key={s.en}
+                        key={s}
                         className="dropdown-item-btn"
-                        type="button"
-                        onMouseDown={(e) => e.preventDefault()} // évite blur avant click
-                        onClick={() => handleAddAllergyEnglish(s.en)}
-                        disabled={updating}
+                        onClick={() => handleAddAllergyFromList(s)}
                       >
-                        {s.label}
+                        {s}
                       </button>
                     ))}
-
-                  {!loadingSuggestions && suggestions.length === 0 && (
-                    <div className="dropdown-item">Aucun résultat</div>
-                  )}
+                  {!loadingAllergySuggestions &&
+                    allergySuggestions.length === 0 && (
+                      <div className="dropdown-item">Aucun résultat</div>
+                    )}
                 </div>
               )}
             </div>
 
-            {/* Liste des allergies (stockées en EN, affichées en FR) */}
-            <div className="allergies-list">
+            <div className="tags-list">
               {user.allergies?.map((a) => (
-                <div key={a} className="allergy-tag">
-                  ⚠️ {translateAllergy(a)}
+                <div key={a} className="tag">
+                  ⚠️ {a}
                   <button
-                    className="allergy-remove-btn"
+                    className="tag-remove-btn"
                     onClick={() => handleRemoveAllergy(a)}
-                    disabled={updating}
                   >
                     ❌
                   </button>
@@ -361,8 +301,57 @@ function Profil() {
             </div>
           </div>
 
-          {/* (optionnel) bouton logout si tu en avais un ailleurs */}
-          {/* <button onClick={handleLogout}>Déconnexion</button> */}
+          {/* Countries */}
+          <div className="profil-section">
+            <h2 className="section-title">🌍 Pays associés</h2>
+
+            <div ref={countryDropdownRef} className="input-wrapper">
+              <input
+                type="text"
+                className="input"
+                placeholder="Rechercher un pays…"
+                value={newCountry}
+                onChange={(e) => setNewCountry(e.target.value)}
+                onFocus={() => setShowCountryDropdown(true)}
+              />
+
+              {showCountryDropdown && newCountry.trim() && (
+                <div className="dropdown">
+                  {loadingCountrySuggestions && (
+                    <div className="dropdown-item">Recherche…</div>
+                  )}
+                  {!loadingCountrySuggestions &&
+                    countrySuggestions.map((c) => (
+                      <button
+                        key={c}
+                        className="dropdown-item-btn"
+                        onClick={() => handleAddCountry(c)}
+                      >
+                        {c}
+                      </button>
+                    ))}
+                  {!loadingCountrySuggestions &&
+                    countrySuggestions.length === 0 && (
+                      <div className="dropdown-item">Aucun résultat</div>
+                    )}
+                </div>
+              )}
+            </div>
+
+            <div className="tags-list">
+              {user.countries?.map((c) => (
+                <div key={c} className="tag country">
+                  🌎 {c}
+                  <button
+                    className="tag-remove-btn"
+                    onClick={() => handleRemoveCountry(c)}
+                  >
+                    ❌
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
     </div>

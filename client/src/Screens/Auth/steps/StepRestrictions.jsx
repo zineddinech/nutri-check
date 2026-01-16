@@ -36,7 +36,9 @@ function RestrictionRow({
   localAllergyEntries,
 }) {
   const TYPES = ["Allergie", "Régime"];
-  const [draft, setDraft] = useState(row.type === "Allergie" ? (row.draft ?? row.value ?? "") : "");
+  const [draft, setDraft] = useState(
+    row.type === "Allergie" ? row.draft ?? row.value ?? "" : ""
+  );
   const [open, setOpen] = useState(false);
   const [focused, setFocused] = useState(false);
   const [suggestions, setSuggestions] = useState([]); // [{ en, label }]
@@ -148,19 +150,26 @@ function RestrictionRow({
         setErr("");
 
         const token = localStorage.getItem("jwtToken") || "";
-        const url = `${BASE_URL}${ENDPOINT_ALLERGIES}?query=${encodeURIComponent(q)}`;
+        const url = `${BASE_URL}${ENDPOINT_ALLERGIES}?query=${encodeURIComponent(
+          q
+        )}`;
         const res = await fetch(url, {
-          headers: { Accept: "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+          headers: {
+            Accept: "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
           signal: ctl.signal,
         });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
 
-        const pick = (x) => (typeof x === "string" ? x : (x?.name ?? x?.label ?? "")).toString();
+        const pick = (x) =>
+          (typeof x === "string" ? x : x?.name ?? x?.label ?? "").toString();
         let list = [];
         if (Array.isArray(data)) list = data.map(pick);
         else if (Array.isArray(data?.results)) list = data.results.map(pick);
-        else if (Array.isArray(data?.allergies)) list = data.allergies.map(pick);
+        else if (Array.isArray(data?.allergies))
+          list = data.allergies.map(pick);
 
         const currentEn = (row.value ?? "").toLowerCase();
         const uniqEn = Array.from(new Set(list.filter(Boolean)));
@@ -232,7 +241,11 @@ function RestrictionRow({
   }, []);
 
   return (
-    <div className="row" style={{ display: "flex", gap: 12, alignItems: "flex-start" }} ref={boxRef}>
+    <div
+      className="row"
+      style={{ display: "flex", gap: 12, alignItems: "flex-start" }}
+      ref={boxRef}
+    >
       {/* Type */}
       <div style={{ flex: 1 }}>
         <select
@@ -321,10 +334,9 @@ function RestrictionRow({
 
                 {!loading && !err && suggestions.length === 0 && draft.trim() !== "" && (
                   <div style={{ padding: 12, fontSize: 14, color: "#666" }}>
-                    Aucun résultat pour “{draft.trim()}”.
+                    Recherche…
                   </div>
                 )}
-
                 {!loading &&
                   !err &&
                   suggestions.map((s) => (
@@ -411,7 +423,10 @@ export default function StepRestrictions({ allergies, setAllergies, regimes, set
   }, [allergies]);
 
   const addRow = () =>
-    setRows((rs) => [...rs, { id: crypto.randomUUID(), type: "Allergie", value: "", draft: "" }]);
+    setRows((rs) => [
+      ...rs,
+      { id: crypto.randomUUID(), type: "Allergie", value: "", draft: "" },
+    ]);
 
   const removeRow = (idx) => {
     setRows((rs) => {
@@ -520,7 +535,10 @@ export default function StepRestrictions({ allergies, setAllergies, regimes, set
         puis sélectionne dans la liste.
       </p>
 
-      <div className="restrictions-list" style={{ display: "grid", gap: 12, marginTop: 12 }}>
+      <div
+        className="restrictions-list"
+        style={{ display: "grid", gap: 12, marginTop: 12 }}
+      >
         {rows.map((row, idx) => (
           <RestrictionRow
             key={row.id}
@@ -535,7 +553,14 @@ export default function StepRestrictions({ allergies, setAllergies, regimes, set
         ))}
       </div>
 
-      <div style={{ marginTop: 12, width: "100%", display: "flex", justifyContent: "center" }}>
+      <div
+        style={{
+          marginTop: 12,
+          width: "100%",
+          display: "flex",
+          justifyContent: "center",
+        }}
+      >
         <button
           type="button"
           className="button"
@@ -561,11 +586,19 @@ export default function StepRestrictions({ allergies, setAllergies, regimes, set
         </button>
       </div>
 
-      <div className="form-footer form-footer--narrow" style={{ gap: 12, marginTop: 20 }}>
+      <div
+        className="form-footer form-footer--narrow"
+        style={{ gap: 12, marginTop: 20 }}
+      >
         <button type="button" className="next-button" onClick={onPrev}>
           Précédent
         </button>
-        <button type="button" className="next-button" onClick={onNext} disabled={!canNext}>
+        <button
+          type="button"
+          className="next-button"
+          onClick={onNext}
+          disabled={!canNext}
+        >
           Suivant
         </button>
       </div>

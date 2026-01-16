@@ -35,6 +35,8 @@ services:
       # 'mongo' est le nom du service de base de données défini ci-dessus.
       - MONGO_URI=mongodb://mongo:27017
       - MONGO_DB_NAME=nutridb
+      - GOOGLE_API_KEY=dummy-key-for-tests
+
     # S'assure que le service 'mongo' est démarré et prêt avant de démarrer le service 'server'.
     depends_on:
       - mongo

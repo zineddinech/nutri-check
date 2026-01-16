@@ -13,11 +13,42 @@ import {
   getUserFavorites,
 } from "../services/favoritesService";
 
-const ImageWithLoader = ({ src, alt, fallbackIcon }) => {
+const ImageWithLoader = ({ src, alt, fallbackIcon, productName }) => {
   const [isLoaded, setIsLoaded] = useState(false);
   const [hasError, setHasError] = useState(false);
+  const [fallbackImage, setFallbackImage] = useState(null);
+  const [isLoadingFallback, setIsLoadingFallback] = useState(false);
 
-  if (!src) {
+  const loadImageByName = async () => {
+    if (isLoadingFallback || !productName) return;
+
+    setIsLoadingFallback(true);
+    try {
+      const response = await fetch(
+        `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(
+          productName
+        )}&search_simple=1&action=process&json=1&page_size=1`
+      );
+
+      if (!response.ok) throw new Error("Image non disponible");
+
+      const data = await response.json();
+      const img =
+        data?.products?.[0]?.image_front_url ||
+        data?.products?.[0]?.image_url ||
+        null;
+
+      if (img) {
+        setFallbackImage(img);
+      }
+    } catch {
+      // Silencieux - utiliser le placeholder
+    } finally {
+      setIsLoadingFallback(false);
+    }
+  };
+
+  if (!src && !fallbackImage) {
     return (
       <div className="no-image-placeholder">
         <span className="no-image-icon">📷</span>
@@ -26,7 +57,16 @@ const ImageWithLoader = ({ src, alt, fallbackIcon }) => {
     );
   }
 
-  if (hasError) {
+  if (hasError && !fallbackImage) {
+    // Essayer de charger l'image depuis OpenFoodFacts
+    if (!isLoadingFallback) {
+      loadImageByName();
+    }
+  }
+
+  const currentSrc = fallbackImage || src;
+
+  if (hasError && !fallbackImage) {
     return (
       <div className="no-image-placeholder">
         <span className="no-image-icon">📷</span>
@@ -40,7 +80,7 @@ const ImageWithLoader = ({ src, alt, fallbackIcon }) => {
       {!isLoaded && <div className="image-skeleton"></div>}
 
       <img
-        src={src}
+        src={currentSrc}
         alt={alt}
         className={`product-image ${isLoaded ? "visible" : ""}`}
         loading="lazy"
@@ -443,7 +483,11 @@ function Products() {
                     <div className="compatibility">Nutriscore {nutri}</div>
 
                     <div className="product-image-container">
-                      <ImageWithLoader src={imageUrl} alt={name} />
+                      <ImageWithLoader
+                        src={imageUrl}
+                        alt={name}
+                        productName={name}
+                      />
                     </div>
 
                     <div className="product-title">{name}</div>

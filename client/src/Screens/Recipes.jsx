@@ -564,6 +564,7 @@ function Recipes() {
                   <div className="ingredients-grid">
                     {recipeResult.ingredients.map((ingredient, index) => {
                       const prod = matchedProducts[index];
+                      const isSearching = matchesLoading && prod === undefined;
 
                       if (prod) {
                         const code = prod.code ?? prod._id ?? prod.id;
@@ -578,7 +579,7 @@ function Recipes() {
                           <div
                             key={index}
                             className="product-card-recipe"
-                            onClick={() => navigate(`/product/${productId}`)}
+                            onClick={() => navigate(`/produits/${productId}`)}
                             style={{ cursor: "pointer" }}
                           >
                             <div className="product-image-container">
@@ -617,7 +618,26 @@ function Recipes() {
                         );
                       }
 
-                      // Affichage pour ingrédients non trouvés
+                      // Affichage pendant le chargement
+                      if (isSearching) {
+                        return (
+                          <div
+                            key={index}
+                            className="product-card-recipe loading-card"
+                          >
+                            <div className="loading-content">
+                              <div className="image-skeleton"></div>
+                              <div className="ingredient-tag">
+                                {ingredient.name}
+                              </div>
+                              <div className="product-title skeleton-text"></div>
+                              <div className="product-brand skeleton-text skeleton-short"></div>
+                            </div>
+                          </div>
+                        );
+                      }
+
+                      // Affichage pour ingrédients non trouvés après la recherche
                       return (
                         <div
                           key={index}
@@ -659,22 +679,6 @@ function Recipes() {
                   <p className="no-data">Aucune étape détectée</p>
                 </div>
               )}
-
-              {/* Bouton d'action */}
-              <div className="recipe-actions">
-                <button
-                  className="btn-save-recipe"
-                  onClick={() => alert("Fonctionnalité à venir")}
-                >
-                  💾 Sauvegarder la recette
-                </button>
-                <button
-                  className="btn-share-recipe"
-                  onClick={() => alert("Fonctionnalité à venir")}
-                >
-                  📤 Partager
-                </button>
-              </div>
             </div>
           </div>
         )}

@@ -13,79 +13,121 @@ import {
   getUserFavorites,
 } from "../services/favoritesService";
 
-const ImageWithLoader = ({ src, alt, fallbackIcon, productName }) => {
+const ImageWithLoader = ({ code, alt, productName }) => {
   const [isLoaded, setIsLoaded] = useState(false);
-  const [hasError, setHasError] = useState(false);
-  const [fallbackImage, setFallbackImage] = useState(null);
-  const [isLoadingFallback, setIsLoadingFallback] = useState(false);
+  const [image, setImage] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const loadImageByName = async () => {
-    if (isLoadingFallback || !productName) return;
+  const OFF_PRODUCT_BY_CODE = "https://world.openfoodfacts.org/api/v2/product/";
+  const FALLBACK_IMG =
+    "https://via.placeholder.com/150/e0e0e0/757575?text=Pas+d'image";
 
-    setIsLoadingFallback(true);
-    try {
-      const response = await fetch(
-        `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(
-          productName
-        )}&search_simple=1&action=process&json=1&page_size=1`
-      );
+  // Charger l'image lors du montage du composant
+  useEffect(() => {
+    let cancelled = false;
+    let timeoutId = null;
 
-      if (!response.ok) throw new Error("Image non disponible");
-
-      const data = await response.json();
-      const img =
-        data?.products?.[0]?.image_front_url ||
-        data?.products?.[0]?.image_url ||
-        null;
-
-      if (img) {
-        setFallbackImage(img);
+    const setImageWithTimeout = (img) => {
+      if (!cancelled) {
+        setImage(img);
       }
-    } catch {
-      // Silencieux - utiliser le placeholder
-    } finally {
-      setIsLoadingFallback(false);
+    };
+
+    const handleTimeout = () => {
+      if (!cancelled && !image) {
+        setImageWithTimeout(FALLBACK_IMG);
+        setIsLoading(false);
+      }
+    };
+
+    const loadImageByCode = async (productCode) => {
+      try {
+        const resp = await fetch(`${OFF_PRODUCT_BY_CODE}${productCode}.json`);
+        if (!resp.ok) throw new Error("Image non disponible");
+
+        const data = await resp.json();
+        const prod = data.product || {};
+
+        const img =
+          prod.image_front_url || prod.image_front_small_url || prod.image_url;
+
+        if (img && !cancelled) {
+          setImageWithTimeout(img);
+          if (timeoutId) clearTimeout(timeoutId);
+        } else if (!cancelled) {
+          await loadImageByName(productName);
+        }
+      } catch {
+        if (!cancelled) {
+          loadImageByName(productName);
+        }
+      }
+    };
+
+    const loadImageByName = async (name) => {
+      try {
+        const response = await fetch(
+          `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(
+            name,
+          )}&search_simple=1&action=process&json=1&page_size=1`,
+        );
+
+        if (!response.ok) throw new Error("Image non disponible");
+
+        const data = await response.json();
+        const img =
+          data?.products?.[0]?.image_front_url ||
+          data?.products?.[0]?.image_url;
+
+        if (img && !cancelled) {
+          setImageWithTimeout(img);
+          if (timeoutId) clearTimeout(timeoutId);
+        } else if (!cancelled) {
+          setImageWithTimeout(FALLBACK_IMG);
+          if (timeoutId) clearTimeout(timeoutId);
+        }
+      } catch {
+        if (!cancelled) {
+          setImageWithTimeout(FALLBACK_IMG);
+          if (timeoutId) clearTimeout(timeoutId);
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    if (code) {
+      timeoutId = setTimeout(handleTimeout, 10000);
+      loadImageByCode(code);
+    } else if (productName) {
+      timeoutId = setTimeout(handleTimeout, 10000);
+      loadImageByName(productName);
+    } else {
+      setImageWithTimeout(FALLBACK_IMG);
+      setIsLoading(false);
     }
-  };
 
-  if (!src && !fallbackImage) {
-    return (
-      <div className="no-image-placeholder">
-        <span className="no-image-icon">📷</span>
-        <span>Pas d'image</span>
-      </div>
-    );
-  }
-
-  if (hasError && !fallbackImage) {
-    // Essayer de charger l'image depuis OpenFoodFacts
-    if (!isLoadingFallback) {
-      loadImageByName();
-    }
-  }
-
-  const currentSrc = fallbackImage || src;
-
-  if (hasError && !fallbackImage) {
-    return (
-      <div className="no-image-placeholder">
-        <span className="no-image-icon">📷</span>
-        <span>Pas d'image</span>
-      </div>
-    );
-  }
+    return () => {
+      cancelled = true;
+      if (timeoutId) clearTimeout(timeoutId);
+    };
+  }, [code, productName]);
 
   return (
     <>
       {!isLoaded && <div className="image-skeleton"></div>}
-
       <img
-        src={currentSrc}
+        src={image || FALLBACK_IMG}
         alt={alt}
         className={`product-image ${isLoaded ? "visible" : ""}`}
         loading="lazy"
         onLoad={() => setIsLoaded(true)}
-        onError={() => setHasError(true)}
+        onError={(e) => {
+          e.target.src = FALLBACK_IMG;
+          setIsLoaded(true);
+        }}
       />
     </>
   );
@@ -114,12 +156,6 @@ function Products() {
   const loadingStateRef = useRef(loading);
   const pageRef = useRef(page);
   const hasMoreRef = useRef(hasMore);
-
-  const DEFAULT_IMAGE =
-    "https://via.placeholder.com/150/e0e0e0/757575?text=Produit";
-
-  const API_BASE = "http://localhost:8000";
-  const getLocalImage = (code) => `${API_BASE}/images/${code}.jpg`;
 
   /** ----------- Charger l'utilisateur et ses favoris ----------- */
   useEffect(() => {
@@ -189,7 +225,7 @@ function Products() {
               activeSearch,
               targetPage,
               100,
-              filter
+              filter,
             );
           } else {
             data = await getProductsByIndex(sort, targetPage, 100, filter);
@@ -198,7 +234,7 @@ function Products() {
 
         const arr = Array.isArray(data)
           ? data
-          : data?.data ?? data?.items ?? [];
+          : (data?.data ?? data?.items ?? []);
 
         if (arr.length === 0) {
           setHasMore(false);
@@ -250,7 +286,7 @@ function Products() {
         loadingStateRef.current = false;
       }
     },
-    [activeSearch, sortField, sortOrder, filter]
+    [activeSearch, sortField, sortOrder, filter],
   );
 
   /** ----------- Scroll infini ----------- */
@@ -462,8 +498,6 @@ function Products() {
                   product.compatibility ?? product.compatibility_score ?? 0;
                 const isFavorite = favorites.has(code);
 
-                const imageUrl = code ? getLocalImage(code) : null;
-
                 return (
                   <div
                     className="product-card"
@@ -484,7 +518,7 @@ function Products() {
 
                     <div className="product-image-container">
                       <ImageWithLoader
-                        src={imageUrl}
+                        code={code}
                         alt={name}
                         productName={name}
                       />

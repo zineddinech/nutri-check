@@ -106,7 +106,19 @@ function ProductDetail() {
     if (!product) return;
 
     let cancelled = false;
+    let timeoutId = null;
 
+    const setImageWithTimeout = (img) => {
+      if (!cancelled) {
+        setImage(img);
+      }
+    };
+
+    const handleTimeout = () => {
+      if (!cancelled && !image) {
+        setImageWithTimeout(FALLBACK_IMG);
+      }
+    };
     const loadImageByCode = async (code) => {
       try {
         const resp = await fetch(`${OFF_PRODUCT_BY_CODE}${code}.json`);
@@ -123,7 +135,10 @@ function ProductDetail() {
 
         if (!cancelled) setImage(img);
       } catch (e) {
-        if (!cancelled) setImage(FALLBACK_IMG);
+        if (!cancelled) {
+          setImageWithTimeout(FALLBACK_IMG);
+          if (timeoutId) clearTimeout(timeoutId);
+        }
       }
     };
 
@@ -131,8 +146,8 @@ function ProductDetail() {
       try {
         const response = await fetch(
           `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(
-            name
-          )}&search_simple=1&action=process&json=1&page_size=1`
+            name,
+          )}&search_simple=1&action=process&json=1&page_size=1`,
         );
 
         if (!response.ok) throw new Error("Image non disponible");
@@ -143,9 +158,15 @@ function ProductDetail() {
           data?.products?.[0]?.image_url ||
           FALLBACK_IMG;
 
-        if (!cancelled) setImage(img);
+        if (!cancelled) {
+          setImageWithTimeout(img);
+          if (timeoutId) clearTimeout(timeoutId);
+        }
       } catch {
-        if (!cancelled) setImage(FALLBACK_IMG);
+        if (!cancelled) {
+          setImageWithTimeout(FALLBACK_IMG);
+          if (timeoutId) clearTimeout(timeoutId);
+        }
       }
     };
 
@@ -287,7 +308,7 @@ function ProductDetail() {
                     className="nutriscore-badge"
                     style={{
                       backgroundColor: getNutriscoreColor(
-                        product.nutriscore_grade
+                        product.nutriscore_grade,
                       ),
                     }}
                   >
@@ -488,12 +509,12 @@ function ProductMap({ countries }) {
 
         try {
           const response = await fetch(
-            `https://raw.githubusercontent.com/johan/world.geo.json/master/countries.geo.json`
+            `https://raw.githubusercontent.com/johan/world.geo.json/master/countries.geo.json`,
           );
           const geojson = await response.json();
           // Filtrer par le pays
           const countryGeo = geojson.features.find(
-            (f) => f.properties.name === country
+            (f) => f.properties.name === country,
           );
           if (countryGeo) {
             data[country] = countryGeo;
@@ -545,7 +566,7 @@ function ProductMap({ countries }) {
     });
 
     layer.bindPopup(
-      `<div style="font-weight: bold;">${feature.properties.name}</div>`
+      `<div style="font-weight: bold;">${feature.properties.name}</div>`,
     );
   };
 

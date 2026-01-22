@@ -25,8 +25,12 @@ class ProductService:
 
         # Utilise une recherche au DÉBUT du nom du produit (ancre ^)
         # case-insensitive pour être flexible
-        filter_query = {"product_name": {"$regex": f"^{query}", "$options": "i"}}
-
+        filter_query = {
+            "_keywords": {
+                "$regex": f"^{query}",
+                "$options": "i"
+            }
+        }
         # Filtre optionnel sur les allergens
         if user_allergens:
             # FIXME: solution temporaire car le format des allergens peut varier dans la db actuellement

@@ -15,11 +15,13 @@ class ProductResponse(BaseModel):
     nutrition_grade_fr: Optional[str] = None
     allergens: Optional[List[str]] = None
     url: Optional[str] = None
+    # Champs nutritionnels (peuvent venir de "nutriments" ou directement)
     energy_100g: Optional[float] = None
     fat_100g: Optional[float] = None
     sugar_100g: Optional[float] = None
     proteins_100g: Optional[float] = None
     salt_100g: Optional[float] = None
+    sugars_100g: Optional[float] = None  # Alias pour sugar_100g
     ingredients_text: Optional[str] = None
     countries: Optional[str] = None
 

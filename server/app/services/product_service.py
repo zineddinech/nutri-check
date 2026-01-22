@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 
 from bson import ObjectId
 from pymongo import ASCENDING, DESCENDING
@@ -7,6 +7,76 @@ from ..database.database import get_db
 
 
 class ProductService:
+    @staticmethod
+    def extract_nutrition_from_nutriments(nutriments: dict) -> dict:
+        """
+        Extrait les valeurs nutritionnelles du champ 'nutriments' de MongoDB.
+        Convertit les valeurs en float pour normaliser les types.
+        
+        Example:
+            nutriments = {
+                "sugars_100g": 0,
+                "proteins_100g": 0,
+                "salt_100g": 1.34,
+                "fat_100g": 57.14,
+                "energy_100g": 2389
+            }
+            
+            Retourne: {
+                "sugars_100g": 0.0,
+                "proteins_100g": 0.0,
+                "salt_100g": 1.34,
+                "fat_100g": 57.14,
+                "energy_100g": 2389.0
+            }
+        """
+        nutrition = {}
+        
+        if not nutriments or not isinstance(nutriments, dict):
+            return nutrition
+        
+        # Champs nutritionnels à extraire
+        nutrition_fields = [
+            "energy_100g",
+            "fat_100g",
+            "sugar_100g",
+            "sugars_100g",  # Alias pour sugar_100g
+            "proteins_100g",
+            "salt_100g"
+        ]
+        
+        for field in nutrition_fields:
+            if field in nutriments:
+                value = nutriments[field]
+                # Convertir en float, gérer les cas None/null
+                try:
+                    nutrition[field] = float(value) if value is not None else None
+                except (ValueError, TypeError):
+                    nutrition[field] = None
+        
+        # Si 'sugars_100g' existe mais pas 'sugar_100g', créer un alias
+        if "sugars_100g" in nutrition and "sugar_100g" not in nutrition:
+            nutrition["sugar_100g"] = nutrition["sugars_100g"]
+        
+        return nutrition
+
+    @staticmethod
+    def enrich_product_with_nutrition(product: Optional[dict]) -> Optional[dict]:
+        """
+        Enrichit un produit avec les valeurs nutritionnelles extraites de 'nutriments'.
+        """
+        if not product:
+            return product
+        
+        # Si le produit a un champ 'nutriments', extraire les valeurs
+        if "nutriments" in product and product["nutriments"]:
+            nutrition = ProductService.extract_nutrition_from_nutriments(
+                product["nutriments"]
+            )
+            # Mettre à jour le produit avec les valeurs nutritionnelles
+            product.update(nutrition)
+        
+        return product
     @staticmethod
     async def search_products(
         query: str,
@@ -50,7 +120,14 @@ class ProductService:
         products_cursor = db["products"].find(filter_query).skip(skip).limit(page_size)
 
         products = await products_cursor.to_list(length=page_size)
-        return products
+        
+        # Enrichir chaque produit avec les valeurs nutritionnelles
+        enriched_products = [
+            ProductService.enrich_product_with_nutrition(product)
+            for product in products
+        ]
+        
+        return enriched_products
 
     @staticmethod
     async def get_products_sorted(
@@ -123,13 +200,25 @@ class ProductService:
             .limit(page_size)
         )
         products = await products_cursor.to_list(length=page_size)
-        return products
+        
+        # Enrichir chaque produit avec les valeurs nutritionnelles
+        enriched_products = [
+            ProductService.enrich_product_with_nutrition(product)
+            for product in products
+        ]
+        
+        return enriched_products
 
     @staticmethod
-    async def get_product_by_id(product_id: str) -> dict:
+    async def get_product_by_id(product_id: str) -> Optional[dict]:
         """
         Récupère un produit par son ID depuis MongoDB.
+        Enrichit le produit avec les valeurs nutritionnelles extraites de 'nutriments'.
         """
         db = get_db()
         product = await db["products"].find_one({"_id": product_id})
-        return product
+        
+        # Enrichir le produit avec les valeurs nutritionnelles
+        enriched_product = ProductService.enrich_product_with_nutrition(product)
+        
+        return enriched_product

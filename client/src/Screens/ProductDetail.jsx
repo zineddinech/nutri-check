@@ -7,9 +7,7 @@ import "leaflet/dist/leaflet.css";
 import ImageCache from "../services/imageCache";
 
 const OFF_PRODUCT_BY_CODE = "https://world.openfoodfacts.org/api/v2/product/";
-const FALLBACK_IMG =
-  "./default-image.png"; // Image par défaut locale
-
+const FALLBACK_IMG = "./default-image.png"; // Image par défaut locale
 
 function ProductDetail() {
   const { id } = useParams();
@@ -349,7 +347,7 @@ function ProductDetail() {
               <NutritionCard
                 icon="🍬"
                 label="Sucres"
-                value={product.sugars_100g}
+                value={product.sugars_100g || product.sugar_100g}
                 unit="g"
                 color="#6bcf7f"
                 gradient="linear-gradient(135deg, #6bcf7f 0%, #4ecdc4 100%)"

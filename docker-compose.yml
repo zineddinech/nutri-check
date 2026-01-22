@@ -35,6 +35,8 @@ services:
       # 'mongo' est le nom du service de base de données défini ci-dessus.
       - MONGO_URI=mongodb://mongo:27017
       - MONGO_DB_NAME=nutridb
+      - GOOGLE_API_KEY=dummy-key-for-tests
+
     # S'assure que le service 'mongo' est démarré et prêt avant de démarrer le service 'server'.
     depends_on:
       - mongo
@@ -57,6 +59,15 @@ services:
     # S'assure que le backend est démarré avant le frontend.
     depends_on:
       - server
+    networks:
+      - nutri-network
+  k6:
+    image: grafana/k6:latest
+    container_name: nutri_k6
+    depends_on:
+      - server
+    volumes:
+      - ./server/tests/performance:/scripts
     networks:
       - nutri-network
 

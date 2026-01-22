@@ -42,3 +42,8 @@ export function removeFavorite(user_id, product_id) {
     method: "DELETE",
   });
 }
+
+export function getFavoriteCount(product_id) {
+  const url = `${API_BASE}/api/favorites/count/${encodeURIComponent(product_id)}`;
+  return fetchJson(url);
+}

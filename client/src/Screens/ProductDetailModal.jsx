@@ -5,8 +5,6 @@ import { MapContainer, TileLayer, Marker, Popup, GeoJSON } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 
 const OFF_PRODUCT_BY_CODE = "https://world.openfoodfacts.org/api/v2/product/";
-const FALLBACK_IMG =
-  "https://via.placeholder.com/400/e0e0e0/757575?text=Image+non+disponible";
 
 function ProductDetailModal({ productId, onClose }) {
   const [product, setProduct] = useState(null);
@@ -14,6 +12,7 @@ function ProductDetailModal({ productId, onClose }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [imageLoaded, setImageLoaded] = useState(false);
+  const [imageError, setImageError] = useState(false);
 
   // 1) Charger le produit (backend Nutri-Check)
   useEffect(() => {
@@ -52,26 +51,6 @@ function ProductDetailModal({ productId, onClose }) {
 
     let cancelled = false;
 
-    const loadImageByCode = async (code) => {
-      try {
-        const resp = await fetch(`${OFF_PRODUCT_BY_CODE}${code}.json`);
-        if (!resp.ok) throw new Error("Image non disponible");
-
-        const data = await resp.json();
-        const prod = data.product || {};
-
-        const img =
-          prod.image_front_url ||
-          prod.image_front_small_url ||
-          prod.image_url ||
-          FALLBACK_IMG;
-
-        if (!cancelled) setImage(img);
-      } catch (e) {
-        if (!cancelled) setImage(FALLBACK_IMG);
-      }
-    };
-
     const loadImageByName = async (name) => {
       try {
         const response = await fetch(
@@ -85,12 +64,50 @@ function ProductDetailModal({ productId, onClose }) {
         const data = await response.json();
         const img =
           data?.products?.[0]?.image_front_url ||
-          data?.products?.[0]?.image_url ||
-          FALLBACK_IMG;
+          data?.products?.[0]?.image_url;
 
-        if (!cancelled) setImage(img);
+        if (!cancelled) {
+          if (img) {
+            setImage(img);
+          } else {
+            setImageError(true);
+          }
+        }
       } catch {
-        if (!cancelled) setImage(FALLBACK_IMG);
+        if (!cancelled) setImageError(true);
+      }
+    };
+
+    const loadImageByCode = async (code, productName) => {
+      try {
+        const resp = await fetch(`${OFF_PRODUCT_BY_CODE}${code}.json`);
+        if (!resp.ok) throw new Error("Image non disponible");
+
+        const data = await resp.json();
+        const prod = data.product || {};
+
+        const img =
+          prod.image_front_url ||
+          prod.image_front_small_url ||
+          prod.image_url;
+
+        if (!cancelled) {
+          if (img) {
+            setImage(img);
+          } else if (productName) {
+            loadImageByName(productName);
+          } else {
+            setImageError(true);
+          }
+        }
+      } catch (e) {
+        if (!cancelled) {
+          if (productName) {
+            loadImageByName(productName);
+          } else {
+            setImageError(true);
+          }
+        }
       }
     };
 
@@ -99,13 +116,14 @@ function ProductDetailModal({ productId, onClose }) {
 
     setImage(null);
     setImageLoaded(false);
+    setImageError(false);
 
     if (code) {
-      loadImageByCode(code);
+      loadImageByCode(code, name);
     } else if (name) {
       loadImageByName(name);
     } else {
-      setImage(FALLBACK_IMG);
+      setImageError(true);
     }
 
     return () => {
@@ -115,13 +133,13 @@ function ProductDetailModal({ productId, onClose }) {
 
   const getNutriscoreColor = (grade) => {
     const colors = {
-      a: "#038141",
-      b: "#85bb2f",
-      c: "#fecb02",
-      d: "#ee8100",
-      e: "#e63e11",
+      a: "#00C853", // Vert flashy
+      b: "#76FF03", // Vert lime vif
+      c: "#FFD600", // Jaune vif
+      d: "#FF9100", // Orange vif
+      e: "#FF1744", // Rouge vif
     };
-    return colors[grade?.toLowerCase()] || "#ccc";
+    return colors[grade?.toLowerCase()] || "#78909C";
   };
 
   const formatDate = (timestamp) => {
@@ -185,25 +203,53 @@ function ProductDetailModal({ productId, onClose }) {
           <div className="product-detail-left">
             <div className="product-header">
               <div className="image-wrapper">
-                {!imageLoaded && (
-                  <div className="image-skeleton">
-                    <div className="skeleton-pulse"></div>
-                  </div>
+                {imageError || (!image && !imageLoaded) ? (
+                  !image && !imageError ? (
+                    <div className="image-skeleton">
+                      <div className="skeleton-pulse"></div>
+                    </div>
+                  ) : (
+                    <div className="no-image-placeholder">
+                      <span className="no-image-icon">📷</span>
+                      <span>Pas d'image</span>
+                    </div>
+                  )
+                ) : (
+                  <>
+                    {!imageLoaded && (
+                      <div className="image-skeleton">
+                        <div className="skeleton-pulse"></div>
+                      </div>
+                    )}
+                    <img
+                      src={image}
+                      alt={product.product_name}
+                      className={`product-image ${imageLoaded ? "loaded" : ""}`}
+                      onLoad={() => setImageLoaded(true)}
+                      onError={() => setImageError(true)}
+                    />
+                  </>
                 )}
-                <img
-                  src={image || FALLBACK_IMG}
-                  alt={product.product_name}
-                  className={`product-image ${imageLoaded ? "loaded" : ""}`}
-                  onLoad={() => setImageLoaded(true)}
-                  onError={(e) => {
-                    e.target.src = FALLBACK_IMG;
-                    setImageLoaded(true);
-                  }}
-                />
               </div>
 
               <div className="product-info">
                 <h1 className="product-name">{product.product_name || "—"}</h1>
+
+                {(product.nutrition_grade_fr || product.nutriscore_grade) && (
+                  <div className="nutriscore-container">
+                    <span className="nutriscore-label">Nutri-Score</span>
+                    <div
+                      className="nutriscore-badge"
+                      style={{
+                        backgroundColor: getNutriscoreColor(
+                          product.nutrition_grade_fr || product.nutriscore_grade,
+                        ),
+                      }}
+                    >
+                      {(product.nutrition_grade_fr || product.nutriscore_grade).toUpperCase()}
+                    </div>
+                  </div>
+                )}
 
                 {product.brands && (
                   <div className="info-badge brand-badge">
@@ -232,22 +278,6 @@ function ProductDetailModal({ productId, onClose }) {
                       <span className="info-value">
                         {formatDate(product.last_modified_t)}
                       </span>
-                    </div>
-                  </div>
-                )}
-
-                {product.nutriscore_grade && (
-                  <div className="nutriscore-container">
-                    <span className="nutriscore-label">Nutri-Score</span>
-                    <div
-                      className="nutriscore-badge"
-                      style={{
-                        backgroundColor: getNutriscoreColor(
-                          product.nutriscore_grade,
-                        ),
-                      }}
-                    >
-                      {product.nutriscore_grade.toUpperCase()}
                     </div>
                   </div>
                 )}

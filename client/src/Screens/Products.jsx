@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import "./../styles/Products.css";
 import "./../styles/Background.css";
+import "./../styles/ProductDetailModal.css";
 import {
   getProductsByIndex,
   getProductsSearched,
@@ -13,6 +14,7 @@ import {
   getUserFavorites,
 } from "../services/favoritesService";
 import ImageCache from "../services/imageCache";
+import ProductDetailModal from "./ProductDetailModal";
 
 const ImageWithLoader = ({ code, alt, productName }) => {
   const [isLoaded, setIsLoaded] = useState(false);
@@ -20,8 +22,7 @@ const ImageWithLoader = ({ code, alt, productName }) => {
   const [isLoading, setIsLoading] = useState(true);
 
   const OFF_PRODUCT_BY_CODE = "https://world.openfoodfacts.org/api/v2/product/";
-  const FALLBACK_IMG =
-    "./default-image.png";
+  const FALLBACK_IMG = "./default-image.png";
 
   // Charger l'image lors du montage du composant
   useEffect(() => {
@@ -178,6 +179,7 @@ function Products() {
   const [hasMore, setHasMore] = useState(true);
   const [favorites, setFavorites] = useState(new Set());
   const [currentUser, setCurrentUser] = useState(null);
+  const [selectedProductId, setSelectedProductId] = useState(null);
 
   const observerRef = useRef();
   const loadingRef = useRef(null);
@@ -376,7 +378,11 @@ function Products() {
 
   /** ----------- Navigation vers détail produit ----------- */
   const handleProductClick = (productId) => {
-    navigate(`/produits/${productId}`);
+    setSelectedProductId(productId);
+  };
+
+  const handleCloseModal = () => {
+    setSelectedProductId(null);
   };
 
   /** ----------- Tri et filtrage ----------- */
@@ -576,6 +582,13 @@ function Products() {
           </div>
         </div>
       </div>
+
+      {selectedProductId && (
+        <ProductDetailModal
+          productId={selectedProductId}
+          onClose={handleCloseModal}
+        />
+      )}
     </div>
   );
 }

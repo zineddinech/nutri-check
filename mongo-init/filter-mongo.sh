@@ -3,13 +3,12 @@
 
 DB_NAME="${1:-nutridb}"
 COLLECTION_NAME="${2:-products}"
-FILTERED_COLLECTION="products_filtered"
 
 echo "════════════════════════════════════════════════════════════════════════════════"
 echo "🧹 FILTRAGE ET NORMALISATION MONGODB"
 echo "════════════════════════════════════════════════════════════════════════════════"
 echo ""
-echo "📊 Paramètres: DB=$DB_NAME, Source=$COLLECTION_NAME → Dest=$FILTERED_COLLECTION"
+echo "📊 Paramètres: DB=$DB_NAME, Collection=$COLLECTION_NAME"
 echo ""
 
 # Vérifier la connexion à MongoDB
@@ -33,38 +32,7 @@ fi
 TEMP_SCRIPT=$(mktemp)
 
 cat > "$TEMP_SCRIPT" << 'MONGO_CODE'
-const source = db.products;
-const filtered = db.products_filtered;
-
-// Map des allergènes et traductions
-const allergenMap = {
-  "chicken": "Chicken",
-  "pork": "Pork",
-  "crustaceans": "Crustaceans",
-  "gelatin": "Gelatin",
-  "banana": "Banana",
-  "eggs": "Eggs",
-  "beef": "Beef",
-  "milk": "Milk",
-  "gluten": "Gluten",
-  "fish": "Fish",
-  "mustard": "Mustard",
-  "peach": "Peach",
-  "kiwi": "Kiwi",
-  "sesame": "Sesame seeds",
-  "soy": "Soybeans",
-  "apple": "Apple",
-  "molluscs": "Molluscs",
-  "nuts": "Nuts",
-  "peanuts": "Peanuts",
-  "celery": "Celery",
-  "sulfites": "Sulphur dioxide and sulphites",
-  "orange": "Orange",
-  "caviar": "Red caviar",
-  "lupin": "Lupin",
-  "matsutake": "Matsutake",
-  "yamaimo": "Yamaimo"
-};
+const collection = db.products;
 
 // Pays à conserver (normalisés en anglais)
 const countriesMap = {
@@ -89,42 +57,6 @@ const countriesMap = {
   "Italy": "Italy"
 };
 
-// Normaliser les allergènes
-function normalizeAllergens(allergenStr) {
-  if (!allergenStr || allergenStr.trim() === "") return [];
-  
-  const raw = allergenStr.toLowerCase();
-  const normalized = [];
-  const seen = new Set();
-  
-  // Nettoyer et splitter
-  const items = raw.split(/[,;]/).map(s => s.trim()).filter(s => s);
-  
-  items.forEach(item => {
-    // Enlever les préfixes comme "en:" ou "fr:"
-    let cleaned = item.replace(/^(en|fr):/i, "").trim();
-    
-    // Essayer de matcher avec la map
-    for (const [key, value] of Object.entries(allergenMap)) {
-      if (cleaned.includes(key)) {
-        if (!seen.has(value)) {
-          normalized.push(value);
-          seen.add(value);
-        }
-        return;
-      }
-    }
-    
-    // Si pas de match, garder la version nettoyée (première lettre majuscule)
-    if (cleaned && !seen.has(cleaned)) {
-      normalized.push(cleaned.charAt(0).toUpperCase() + cleaned.slice(1));
-      seen.add(cleaned);
-    }
-  });
-  
-  return normalized;
-}
-
 // Normaliser les pays
 function normalizeCountries(countriesStr) {
   if (!countriesStr || countriesStr.trim() === "") return null;
@@ -133,116 +65,77 @@ function normalizeCountries(countriesStr) {
   return countriesMap[cleaned] || cleaned;
 }
 
-// Nettoyer la collection filtrée
-try {
-  filtered.drop();
-} catch(e) {}
+// Champs à conserver UNIQUEMENT
+const fieldsToKeep = [
+  "_id",
+  "_keywords",
+  "allergens",
+  "allergens_from_ingredients",
+  "brands",
+  "categories",
+  "code",
+  "countries",
+  "ecoscore_tags",
+  "ingredients_text",
+  "last_modified_t",
+  "nutriments",
+  "nutriscore_grade",
+  "product_name",
+  "product_type"
+];
 
-const countBefore = source.countDocuments();
+const countBefore = collection.countDocuments();
 print("   Documents avant: " + countBefore);
 
-// Statistiques de filtrage
-let stats = {
-  no_product_name: 0,
-  no_keywords: 0,
-  no_brands: 0,
-  no_categories: 0,
-  no_nutriments: 0,
-  nutriscore_not_applicable: 0,
-  total_filtered: 0
-};
+let cleanedCount = 0;
 
-// Appliquer les filtres
-const cursor = source.find();
+// Traiter chaque document
+const cursor = collection.find();
 cursor.forEach(doc => {
-  // 1. Virer les produits sans product_name
-  if (!doc.product_name || doc.product_name.trim() === "") {
-    stats.no_product_name++;
-    return;
-  }
-
-  // 2. Virer les produits sans _keywords (1%)
-  if (!doc._keywords || doc._keywords.length === 0) {
-    stats.no_keywords++;
-    return;
-  }
-
-  // 3. Virer les produits sans brands
-  if (!doc.brands || doc.brands.trim() === "") {
-    stats.no_brands++;
-    return;
-  }
-
-  // 4. Virer les produits sans categories
-  if (!doc.categories || doc.categories.trim() === "" || doc.categories === "undefined") {
-    stats.no_categories++;
-    return;
-  }
-
-  // 5. Virer les produits sans nutriments
-  if (!doc.nutriments || Object.keys(doc.nutriments).length === 0) {
-    stats.no_nutriments++;
-    return;
-  }
-
-  // 6. Garder UNIQUEMENT les produits avec un nutriscore valide (pas "unknown", pas vide)
-  if (!doc.nutriscore_grade || doc.nutriscore_grade === "unknown" || doc.nutriscore_grade === "") {
-    stats.nutriscore_not_applicable++;
-    return;
-  }
-
-  // Normaliser les allergènes
-  doc.allergens_from_ingredients = normalizeAllergens(doc.allergens_from_ingredients);
-
   // Normaliser les pays
   if (doc.countries) {
     doc.countries = normalizeCountries(doc.countries);
   }
 
-  // Supprimer les champs non pertinents
-  delete doc.ingredients_text;
+  // Créer un nouveau document avec UNIQUEMENT les champs à conserver
+  const cleanedDoc = {};
+  fieldsToKeep.forEach(field => {
+    if (doc.hasOwnProperty(field)) {
+      cleanedDoc[field] = doc[field];
+    }
+  });
 
-  // Insérer le document filtré et normalisé
-  filtered.insertOne(doc);
-  stats.total_filtered++;
+  // Remplacer le document
+  collection.replaceOne({ _id: doc._id }, cleanedDoc);
+  cleanedCount++;
 
-  if ((stats.total_filtered % 100000) === 0) {
-    print("   ✓ " + stats.total_filtered + " produits filtrés...");
+  if ((cleanedCount % 100000) === 0) {
+    print("   ✓ " + cleanedCount + " documents nettoyés...");
   }
 });
 
 // Créer les index
 print("   📌 Création des index...");
-filtered.createIndex({ code: 1 });
-filtered.createIndex({ product_name: 1 });
-filtered.createIndex({ brands: 1 });
-filtered.createIndex({ categories: 1 });
-filtered.createIndex({ nutriscore_grade: 1 });
+collection.createIndex({ product_name: 1 }, { name: 'idx_product_name' });
+collection.createIndex({ nutriscore_grade: 1 }, { name: 'idx_nutriscore' });
 
-const countAfter = filtered.countDocuments();
-const retention = ((countAfter / countBefore) * 100).toFixed(2);
+const countAfter = collection.countDocuments();
 
 print("");
-print("✅ Filtrage et normalisation complétés!");
+print("✅ Nettoyage et normalisation complétés!");
 print("   Documents avant: " + countBefore);
-print("   Documents après: " + countAfter);
-print("   Rétention: " + retention + "%");
+print("   Documents nettoyés: " + cleanedCount);
+print("   Champs conservés: " + fieldsToKeep.length);
 print("");
-print("📊 Raisons de suppression:");
-print("   ❌ Sans product_name: " + stats.no_product_name);
-print("   ❌ Sans _keywords: " + stats.no_keywords);
-print("   ❌ Sans brands: " + stats.no_brands);
-print("   ❌ Sans categories: " + stats.no_categories);
-print("   ❌ Sans nutriments: " + stats.no_nutriments);
-print("   ❌ Nutriscore invalide: " + stats.nutriscore_not_applicable);
+print("📋 Champs conservés:");
+print("   ✓ _id, _keywords, allergens, allergens_from_ingredients");
+print("   ✓ brands, categories, code, countries");
+print("   ✓ ecoscore_tags, ingredients_text, last_modified_t");
+print("   ✓ nutriments, nutriscore_grade, product_name, product_type");
 print("");
-print("✨ Normalisations appliquées:");
-print("   ✓ Allergènes normalisés");
-print("   ✓ Pays normalisés");
-print("   ✓ ingredients_text supprimé");
 MONGO_CODE
 
-echo "⏳ Filtrage et normalisation en cours..."
+echo "⏳ Nettoyage et création d'index en cours..."
 echo ""
 
 docker cp "$TEMP_SCRIPT" nutri_mongo:/tmp/filter.js

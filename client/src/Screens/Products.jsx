@@ -12,6 +12,7 @@ import {
   removeFavorite,
   getUserFavorites,
 } from "../services/favoritesService";
+import ImageCache from "../services/imageCache";
 
 const ImageWithLoader = ({ code, alt, productName }) => {
   const [isLoaded, setIsLoaded] = useState(false);
@@ -20,7 +21,7 @@ const ImageWithLoader = ({ code, alt, productName }) => {
 
   const OFF_PRODUCT_BY_CODE = "https://world.openfoodfacts.org/api/v2/product/";
   const FALLBACK_IMG =
-    "https://via.placeholder.com/150/e0e0e0/757575?text=Pas+d'image";
+    "./default-image.png";
 
   // Charger l'image lors du montage du composant
   useEffect(() => {
@@ -36,6 +37,10 @@ const ImageWithLoader = ({ code, alt, productName }) => {
     const handleTimeout = () => {
       if (!cancelled && !image) {
         setImageWithTimeout(FALLBACK_IMG);
+        // Mettre en cache l'image par défaut pour cette clé
+        if (code) {
+          ImageCache.setImage(code, FALLBACK_IMG);
+        }
         setIsLoading(false);
       }
     };
@@ -53,12 +58,16 @@ const ImageWithLoader = ({ code, alt, productName }) => {
 
         if (img && !cancelled) {
           setImageWithTimeout(img);
+          // Sauvegarder en cache
+          ImageCache.setImage(productCode, img);
           if (timeoutId) clearTimeout(timeoutId);
         } else if (!cancelled) {
+          // Pas d'image trouvée avec le code, chercher par nom
           await loadImageByName(productName);
         }
       } catch {
         if (!cancelled) {
+          // Erreur lors de la recherche par code, chercher par nom
           loadImageByName(productName);
         }
       }
@@ -81,14 +90,26 @@ const ImageWithLoader = ({ code, alt, productName }) => {
 
         if (img && !cancelled) {
           setImageWithTimeout(img);
+          // Sauvegarder en cache avec la clé productName comme fallback
+          if (code) {
+            ImageCache.setImage(code, img);
+          }
           if (timeoutId) clearTimeout(timeoutId);
         } else if (!cancelled) {
           setImageWithTimeout(FALLBACK_IMG);
+          // Aucune image trouvée, mettre en cache l'image par défaut
+          if (code) {
+            ImageCache.setImage(code, FALLBACK_IMG);
+          }
           if (timeoutId) clearTimeout(timeoutId);
         }
       } catch {
         if (!cancelled) {
           setImageWithTimeout(FALLBACK_IMG);
+          // Erreur de recherche, mettre en cache l'image par défaut
+          if (code) {
+            ImageCache.setImage(code, FALLBACK_IMG);
+          }
           if (timeoutId) clearTimeout(timeoutId);
         }
       } finally {
@@ -99,10 +120,18 @@ const ImageWithLoader = ({ code, alt, productName }) => {
     };
 
     if (code) {
-      timeoutId = setTimeout(handleTimeout, 10000);
+      // Vérifier le cache d'abord
+      const cachedImg = ImageCache.getImage(code);
+      if (cachedImg) {
+        setImageWithTimeout(cachedImg);
+        setIsLoading(false);
+        return;
+      }
+
+      timeoutId = setTimeout(handleTimeout, 5000);
       loadImageByCode(code);
     } else if (productName) {
-      timeoutId = setTimeout(handleTimeout, 10000);
+      timeoutId = setTimeout(handleTimeout, 5000);
       loadImageByName(productName);
     } else {
       setImageWithTimeout(FALLBACK_IMG);

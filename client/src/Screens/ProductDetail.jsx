@@ -4,61 +4,12 @@ import { getProductById } from "../services/productService";
 import "./../styles/ProductDetail.css";
 import { MapContainer, TileLayer, Marker, Popup, GeoJSON } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
+import ImageCache from "../services/imageCache";
 
 const OFF_PRODUCT_BY_CODE = "https://world.openfoodfacts.org/api/v2/product/";
 const FALLBACK_IMG =
-  "https://via.placeholder.com/400/e0e0e0/757575?text=Image+non+disponible";
+  "./default-image.png"; // Image par défaut locale
 
-// DONNÉES D'EXEMPLE POUR LA CARTE (10 Points autour de Paris)
-const VENDOR_LOCATIONS = [
-  {
-    id: 1,
-    name: "Supermarché Saint-Honoré (75001)",
-    coords: [48.863, 2.337],
-  },
-
-  {
-    id: 2,
-    name: "Épicerie Saint-Sulpice (75006)",
-    coords: [48.851, 2.333],
-  },
-
-  { id: 3, name: "Hyper Clichy (75018)", coords: [48.887, 2.33] },
-
-  { id: 4, name: "Marché Italie 2 (75013)", coords: [48.828, 2.358] },
-
-  {
-    id: 5,
-    name: "Carrefour Billancourt (92100)",
-    coords: [48.835, 2.228],
-  },
-
-  { id: 6, name: "Monop' Château (94300)", coords: [48.847, 2.438] },
-
-  {
-    id: 7,
-    name: "Super U Stade de France (93200)",
-    coords: [48.92, 2.361],
-  },
-
-  {
-    id: 8,
-    name: "Market Versailles Rive Droite (78000)",
-    coords: [48.805, 2.12],
-  },
-
-  {
-    id: 9,
-    name: "Grande Surface Puteaux (92800)",
-    coords: [48.891, 2.238],
-  },
-
-  {
-    id: 10,
-    name: "Boutique Aéroport Orly (94310)",
-    coords: [48.73, 2.37],
-  },
-];
 
 function ProductDetail() {
   const { id } = useParams();
@@ -106,7 +57,23 @@ function ProductDetail() {
     if (!product) return;
 
     let cancelled = false;
+    let timeoutId = null;
 
+    const setImageWithTimeout = (img) => {
+      if (!cancelled) {
+        setImage(img);
+      }
+    };
+
+    const handleTimeout = () => {
+      if (!cancelled && !image) {
+        setImageWithTimeout(FALLBACK_IMG);
+        // Mettre en cache l'image par défaut
+        if (product?.code) {
+          ImageCache.setImage(product.code, FALLBACK_IMG);
+        }
+      }
+    };
     const loadImageByCode = async (code) => {
       try {
         const resp = await fetch(`${OFF_PRODUCT_BY_CODE}${code}.json`);
@@ -121,18 +88,27 @@ function ProductDetail() {
           prod.image_url ||
           FALLBACK_IMG;
 
-        if (!cancelled) setImage(img);
+        if (!cancelled) {
+          setImageWithTimeout(img);
+          // Sauvegarder en cache
+          ImageCache.setImage(code, img);
+          if (timeoutId) clearTimeout(timeoutId);
+        }
       } catch (e) {
-        if (!cancelled) setImage(FALLBACK_IMG);
+        if (!cancelled) {
+          // Erreur lors de la recherche par code, chercher par nom
+          loadImageByName(code, name);
+          if (timeoutId) clearTimeout(timeoutId);
+        }
       }
     };
 
-    const loadImageByName = async (name) => {
+    const loadImageByName = async (prodCode, name) => {
       try {
         const response = await fetch(
           `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(
-            name
-          )}&search_simple=1&action=process&json=1&page_size=1`
+            name,
+          )}&search_simple=1&action=process&json=1&page_size=1`,
         );
 
         if (!response.ok) throw new Error("Image non disponible");
@@ -143,9 +119,26 @@ function ProductDetail() {
           data?.products?.[0]?.image_url ||
           FALLBACK_IMG;
 
-        if (!cancelled) setImage(img);
+        if (!cancelled) {
+          setImageWithTimeout(img);
+          // Sauvegarder en cache avec le code si disponible
+          if (prodCode && img !== FALLBACK_IMG) {
+            ImageCache.setImage(prodCode, img);
+          } else if (prodCode && img === FALLBACK_IMG) {
+            // Aucune image trouvée, mettre en cache l'image par défaut
+            ImageCache.setImage(prodCode, FALLBACK_IMG);
+          }
+          if (timeoutId) clearTimeout(timeoutId);
+        }
       } catch {
-        if (!cancelled) setImage(FALLBACK_IMG);
+        if (!cancelled) {
+          setImageWithTimeout(FALLBACK_IMG);
+          // Erreur, mettre en cache l'image par défaut
+          if (prodCode) {
+            ImageCache.setImage(prodCode, FALLBACK_IMG);
+          }
+          if (timeoutId) clearTimeout(timeoutId);
+        }
       }
     };
 
@@ -157,15 +150,25 @@ function ProductDetail() {
     setImageLoaded(false);
 
     if (code) {
+      // Vérifier le cache d'abord
+      const cachedImg = ImageCache.getImage(code);
+      if (cachedImg) {
+        setImageWithTimeout(cachedImg);
+        return;
+      }
+
+      timeoutId = setTimeout(handleTimeout, 5000);
       loadImageByCode(code);
     } else if (name) {
-      loadImageByName(name);
+      timeoutId = setTimeout(handleTimeout, 5000);
+      loadImageByName(code, name);
     } else {
-      setImage(FALLBACK_IMG);
+      setImageWithTimeout(FALLBACK_IMG);
     }
 
     return () => {
       cancelled = true;
+      if (timeoutId) clearTimeout(timeoutId);
     };
   }, [product]);
 
@@ -287,7 +290,7 @@ function ProductDetail() {
                     className="nutriscore-badge"
                     style={{
                       backgroundColor: getNutriscoreColor(
-                        product.nutriscore_grade
+                        product.nutriscore_grade,
                       ),
                     }}
                   >
@@ -488,12 +491,12 @@ function ProductMap({ countries }) {
 
         try {
           const response = await fetch(
-            `https://raw.githubusercontent.com/johan/world.geo.json/master/countries.geo.json`
+            `https://raw.githubusercontent.com/johan/world.geo.json/master/countries.geo.json`,
           );
           const geojson = await response.json();
           // Filtrer par le pays
           const countryGeo = geojson.features.find(
-            (f) => f.properties.name === country
+            (f) => f.properties.name === country,
           );
           if (countryGeo) {
             data[country] = countryGeo;
@@ -545,7 +548,7 @@ function ProductMap({ countries }) {
     });
 
     layer.bindPopup(
-      `<div style="font-weight: bold;">${feature.properties.name}</div>`
+      `<div style="font-weight: bold;">${feature.properties.name}</div>`,
     );
   };
 

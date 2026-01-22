@@ -403,7 +403,7 @@
   transform: scale(1.08);
 }
 
-.nutriscore-badge {
+.recipes-container .nutriscore-badge {
   position: absolute;
   top: 12px;
   right: 12px;

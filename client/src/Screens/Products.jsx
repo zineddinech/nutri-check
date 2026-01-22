@@ -12,36 +12,101 @@ import {
   addFavorite,
   removeFavorite,
   getUserFavorites,
+  getFavoriteCount,
 } from "../services/favoritesService";
 import ImageCache from "../services/imageCache";
 import ProductDetailModal from "./ProductDetailModal";
+
+// Fonction pour obtenir la couleur du Nutriscore (couleurs flashy)
+const getNutriscoreColor = (grade) => {
+  const colors = {
+    a: "#00C853", // Vert flashy
+    b: "#76FF03", // Vert lime vif
+    c: "#FFD600", // Jaune vif
+    d: "#FF9100", // Orange vif
+    e: "#FF1744", // Rouge vif
+  };
+  return colors[grade?.toLowerCase()] || "#78909C"; // Gris bleuté par défaut
+};
+
+// Fonction pour obtenir la lettre du Nutriscore
+const getNutriscoreLetter = (product) => {
+  const grade = product.nutrition_grade_fr || product.nutriscore_grade;
+  if (grade && ["a", "b", "c", "d", "e"].includes(grade.toLowerCase())) {
+    return grade.toUpperCase();
+  }
+  return "?";
+};
+
+// Composant pour afficher le nombre de favoris
+const FavoriteCount = ({ productId, isFavorite }) => {
+  const [count, setCount] = useState(null);
+  const [initialFavorite, setInitialFavorite] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    getFavoriteCount(productId)
+      .then((data) => {
+        if (!cancelled) {
+          setCount(data.favorite_count);
+          setInitialFavorite(isFavorite);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setCount(0);
+          setInitialFavorite(isFavorite);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [productId]);
+
+  // Ajuster le count quand isFavorite change
+  useEffect(() => {
+    if (count === null || initialFavorite === null) return;
+
+    if (isFavorite && !initialFavorite) {
+      setCount((c) => c + 1);
+      setInitialFavorite(true);
+    } else if (!isFavorite && initialFavorite) {
+      setCount((c) => Math.max(0, c - 1));
+      setInitialFavorite(false);
+    }
+  }, [isFavorite]);
+
+  if (count === null) {
+    return <div className="favorite-count-display">-</div>;
+  }
+
+  return (
+    <div className="favorite-count-display">
+      <span className="favorite-count-heart">♥</span>
+      <span className="favorite-count-number">{count}</span>
+    </div>
+  );
+};
 
 const ImageWithLoader = ({ code, alt, productName }) => {
   const [isLoaded, setIsLoaded] = useState(false);
   const [image, setImage] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [hasError, setHasError] = useState(false);
 
   const OFF_PRODUCT_BY_CODE = "https://world.openfoodfacts.org/api/v2/product/";
-  const FALLBACK_IMG = "./default-image.png";
 
-  // Charger l'image lors du montage du composant
   useEffect(() => {
     let cancelled = false;
     let timeoutId = null;
-
-    const setImageWithTimeout = (img) => {
-      if (!cancelled) {
-        setImage(img);
-      }
-    };
+    setIsLoading(true);
+    setHasError(false);
+    setImage(null);
+    setIsLoaded(false);
 
     const handleTimeout = () => {
       if (!cancelled && !image) {
-        setImageWithTimeout(FALLBACK_IMG);
-        // Mettre en cache l'image par défaut pour cette clé
-        if (code) {
-          ImageCache.setImage(code, FALLBACK_IMG);
-        }
+        setHasError(true);
         setIsLoading(false);
       }
     };
@@ -58,17 +123,15 @@ const ImageWithLoader = ({ code, alt, productName }) => {
           prod.image_front_url || prod.image_front_small_url || prod.image_url;
 
         if (img && !cancelled) {
-          setImageWithTimeout(img);
-          // Sauvegarder en cache
+          setImage(img);
           ImageCache.setImage(productCode, img);
           if (timeoutId) clearTimeout(timeoutId);
+          setIsLoading(false);
         } else if (!cancelled) {
-          // Pas d'image trouvée avec le code, chercher par nom
           await loadImageByName(productName);
         }
       } catch {
         if (!cancelled) {
-          // Erreur lors de la recherche par code, chercher par nom
           loadImageByName(productName);
         }
       }
@@ -89,42 +152,35 @@ const ImageWithLoader = ({ code, alt, productName }) => {
           data?.products?.[0]?.image_front_url ||
           data?.products?.[0]?.image_url;
 
-        if (img && !cancelled) {
-          setImageWithTimeout(img);
-          // Sauvegarder en cache avec la clé productName comme fallback
-          if (code) {
-            ImageCache.setImage(code, img);
+        if (!cancelled) {
+          if (img) {
+            setImage(img);
+            if (code) {
+              ImageCache.setImage(code, img);
+            }
+          } else {
+            setHasError(true);
           }
           if (timeoutId) clearTimeout(timeoutId);
-        } else if (!cancelled) {
-          setImageWithTimeout(FALLBACK_IMG);
-          // Aucune image trouvée, mettre en cache l'image par défaut
-          if (code) {
-            ImageCache.setImage(code, FALLBACK_IMG);
-          }
-          if (timeoutId) clearTimeout(timeoutId);
+          setIsLoading(false);
         }
       } catch {
         if (!cancelled) {
-          setImageWithTimeout(FALLBACK_IMG);
-          // Erreur de recherche, mettre en cache l'image par défaut
-          if (code) {
-            ImageCache.setImage(code, FALLBACK_IMG);
-          }
+          setHasError(true);
           if (timeoutId) clearTimeout(timeoutId);
-        }
-      } finally {
-        if (!cancelled) {
           setIsLoading(false);
         }
       }
     };
 
     if (code) {
-      // Vérifier le cache d'abord
       const cachedImg = ImageCache.getImage(code);
-      if (cachedImg) {
-        setImageWithTimeout(cachedImg);
+      if (cachedImg && cachedImg !== "error") {
+        setImage(cachedImg);
+        setIsLoading(false);
+        return;
+      } else if (cachedImg === "error") {
+        setHasError(true);
         setIsLoading(false);
         return;
       }
@@ -135,7 +191,7 @@ const ImageWithLoader = ({ code, alt, productName }) => {
       timeoutId = setTimeout(handleTimeout, 5000);
       loadImageByName(productName);
     } else {
-      setImageWithTimeout(FALLBACK_IMG);
+      setHasError(true);
       setIsLoading(false);
     }
 
@@ -145,19 +201,25 @@ const ImageWithLoader = ({ code, alt, productName }) => {
     };
   }, [code, productName]);
 
+  if (hasError || (!isLoading && !image)) {
+    return (
+      <div className="no-image-placeholder">
+        <span className="no-image-icon">📷</span>
+        <span>Pas d'image</span>
+      </div>
+    );
+  }
+
   return (
     <>
       {!isLoaded && <div className="image-skeleton"></div>}
       <img
-        src={image || FALLBACK_IMG}
+        src={image}
         alt={alt}
         className={`product-image ${isLoaded ? "visible" : ""}`}
         loading="lazy"
         onLoad={() => setIsLoaded(true)}
-        onError={(e) => {
-          e.target.src = FALLBACK_IMG;
-          setIsLoaded(true);
-        }}
+        onError={() => setHasError(true)}
       />
     </>
   );
@@ -390,18 +452,19 @@ function Products() {
     // Filtrer les produits sans nutriscore si on trie par nutriscore
     .filter((p) => {
       if (sortField.includes("nutriscore")) {
-        const v = p.nutriscore_score ?? p.nutriscore;
-        const n = Number(v);
-        return Number.isFinite(n);
+        const grade = p.nutrition_grade_fr || p.nutriscore_grade;
+        return grade && ["a", "b", "c", "d", "e"].includes(grade.toLowerCase());
       }
       return true;
     })
     .sort((a, b) => {
       const getName = (p) => (p.product_name ?? p.name ?? "").toString();
-      const getNutriNumber = (p) => {
-        const v = p.nutriscore_score ?? p.nutriscore;
-        const n = Number(v);
-        return Number.isFinite(n) ? n : null;
+      const getNutriGrade = (p) => {
+        const grade = p.nutrition_grade_fr || p.nutriscore_grade;
+        if (grade && ["a", "b", "c", "d", "e"].includes(grade.toLowerCase())) {
+          return grade.toLowerCase();
+        }
+        return null;
       };
 
       let comparison = 0;
@@ -411,16 +474,16 @@ function Products() {
         sortField.includes("product_name")
       ) {
         if (sortField.includes("nutriscore")) {
-          const na = getNutriNumber(a);
-          const nb = getNutriNumber(b);
-          if (na === null && nb === null) {
+          const ga = getNutriGrade(a);
+          const gb = getNutriGrade(b);
+          if (ga === null && gb === null) {
             comparison = getName(a).localeCompare(getName(b));
-          } else if (na === null) {
+          } else if (ga === null) {
             comparison = 1;
-          } else if (nb === null) {
+          } else if (gb === null) {
             comparison = -1;
           } else {
-            comparison = na - nb;
+            comparison = ga.localeCompare(gb);
           }
         } else if (sortField.includes("product_name")) {
           comparison = getName(a).localeCompare(getName(b));
@@ -533,6 +596,9 @@ function Products() {
                   product.compatibility ?? product.compatibility_score ?? 0;
                 const isFavorite = favorites.has(code);
 
+                const nutriscoreLetter = getNutriscoreLetter(product);
+                const nutriscoreColor = getNutriscoreColor(nutriscoreLetter);
+
                 return (
                   <div
                     className="product-card"
@@ -540,16 +606,23 @@ function Products() {
                     onClick={() => handleProductClick(code)}
                     style={{ cursor: "pointer" }}
                   >
-                    <button
-                      className={`favorite-button ${
-                        isFavorite ? "favorite-active" : ""
-                      }`}
-                      onClick={(e) => handleToggleFavorite(e, code)}
-                    >
-                      {isFavorite ? "❤️" : "🤍"}
-                    </button>
-
-                    <div className="compatibility">Nutriscore {nutri}</div>
+                    <div className="card-header">
+                      <div
+                        className="nutriscore-circle"
+                        style={{ backgroundColor: nutriscoreColor }}
+                        title={`Nutri-Score ${nutriscoreLetter}`}
+                      >
+                        {nutriscoreLetter}
+                      </div>
+                      <button
+                        className={`favorite-button-top ${
+                          isFavorite ? "favorite-active" : ""
+                        }`}
+                        onClick={(e) => handleToggleFavorite(e, code)}
+                      >
+                        {isFavorite ? "❤️" : "🤍"}
+                      </button>
+                    </div>
 
                     <div className="product-image-container">
                       <ImageWithLoader
@@ -560,7 +633,7 @@ function Products() {
                     </div>
 
                     <div className="product-title">{name}</div>
-                    <div className="nutriscore">Favorites: 10 fois</div>
+                    <FavoriteCount productId={code} isFavorite={isFavorite} />
                   </div>
                 );
               })}

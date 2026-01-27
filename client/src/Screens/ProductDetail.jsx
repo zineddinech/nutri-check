@@ -219,7 +219,7 @@ function ProductDetail() {
   }
 
   return (
-    <div className="product-detail-container" style={{ overflowY: "scroll" }}>
+    <div className="product-detail-container">
       <button className="back-button-top" onClick={() => navigate(-1)}>
         <span className="button-icon">←</span>
         Retour aux produits

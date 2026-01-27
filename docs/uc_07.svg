@@ -1,0 +1,64 @@
+<svg width="530" height="480" viewBox="0 0 800 720" xmlns="http://www.w3.org/2000/svg" style="background:#FFFFFF;">
+    <defs>
+        <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
+            <polygon points="0 0, 10 3.5, 0 7" fill="#333333" />
+        </marker>
+    </defs>
+
+    <text x="400" y="40" font-family="Arial, sans-serif" font-size="24" font-weight="bold" text-anchor="middle" fill="#000">UC-07: Locate Product in Nearby Stores</text>
+
+    <circle cx="400" cy="80" r="15" fill="#333333" />
+
+    <line x1="400" y1="95" x2="400" y2="130" stroke="#333333" stroke-width="2" marker-end="url(#arrowhead)" />
+
+    <rect x="250" y="130" width="300" height="50" rx="10" ry="10" fill="#f0f0f0" stroke="#333333" stroke-width="1.5" />
+    <text x="400" y="160" font-family="Arial, sans-serif" font-size="14" text-anchor="middle" fill="#000">User views Product Details Page</text>
+
+    <line x1="400" y1="180" x2="400" y2="220" stroke="#333333" stroke-width="2" marker-end="url(#arrowhead)" />
+
+    <rect x="200" y="220" width="400" height="50" rx="10" ry="10" fill="#f0f0f0" stroke="#333333" stroke-width="1.5" />
+    <text x="400" y="242" font-family="Arial, sans-serif" font-size="14" text-anchor="middle" fill="#000">System gets Barcode</text>
+    <text x="400" y="258" font-family="Arial, sans-serif" font-size="14" text-anchor="middle" fill="#000">&amp; User Geolocation</text>
+
+    <line x1="400" y1="270" x2="400" y2="310" stroke="#333333" stroke-width="2" marker-end="url(#arrowhead)" />
+
+    <rect x="200" y="310" width="400" height="50" rx="10" ry="10" fill="#f0f0f0" stroke="#333333" stroke-width="1.5" />
+    <text x="400" y="340" font-family="Arial, sans-serif" font-size="14" text-anchor="middle" fill="#000">Query Inventory API for nearby stores</text>
+
+    <line x1="400" y1="360" x2="400" y2="400" stroke="#333333" stroke-width="2" marker-end="url(#arrowhead)" />
+
+    <polygon points="400,400 550,440 400,480 250,440" fill="#f0f0f0" stroke="#333333" stroke-width="1.5" />
+    <text x="400" y="445" font-family="Arial, sans-serif" font-size="13" text-anchor="middle" fill="#000">Stores Found?</text>
+
+    <text x="210" y="430" font-family="Arial, sans-serif" font-size="12" fill="#000">No</text>
+    <line x1="250" y1="440" x2="150" y2="440" stroke="#333333" stroke-width="2" />
+    <line x1="150" y1="440" x2="150" y2="500" stroke="#333333" stroke-width="2" marker-end="url(#arrowhead)" />
+
+    <rect x="50" y="500" width="200" height="50" rx="10" ry="10" fill="#f0f0f0" stroke="#333333" stroke-width="1.5" />
+    <text x="150" y="530" font-family="Arial, sans-serif" font-size="14" text-anchor="middle" fill="#000">Show fallback info / "None"</text>
+
+    <text x="560" y="430" font-family="Arial, sans-serif" font-size="12" fill="#000">Yes</text>
+    <line x1="550" y1="440" x2="650" y2="440" stroke="#333333" stroke-width="2" />
+    <line x1="650" y1="440" x2="650" y2="500" stroke="#333333" stroke-width="2" marker-end="url(#arrowhead)" />
+
+    <rect x="550" y="500" width="200" height="50" rx="10" ry="10" fill="#f0f0f0" stroke="#333333" stroke-width="1.5" />
+    <text x="650" y="530" font-family="Arial, sans-serif" font-size="14" text-anchor="middle" fill="#000">Update Map with Markers</text>
+
+    <line x1="650" y1="550" x2="650" y2="580" stroke="#333333" stroke-width="2" marker-end="url(#arrowhead)" />
+    <rect x="550" y="580" width="200" height="50" rx="10" ry="10" fill="#f0f0f0" stroke="#333333" stroke-width="1.5" />
+    <text x="650" y="610" font-family="Arial, sans-serif" font-size="14" text-anchor="middle" fill="#000">User clicks marker for details</text>
+
+    <polygon points="400,630 420,650 400,670 380,650" fill="#f0f0f0" stroke="#333333" stroke-width="1.5" />
+
+    <line x1="150" y1="550" x2="150" y2="650" stroke="#333333" stroke-width="2" />
+    <line x1="150" y1="650" x2="380" y2="650" stroke="#333333" stroke-width="2" marker-end="url(#arrowhead)" />
+
+    <line x1="650" y1="630" x2="650" y2="650" stroke="#333333" stroke-width="2" />
+    <line x1="650" y1="650" x2="420" y2="650" stroke="#333333" stroke-width="2" marker-end="url(#arrowhead)" />
+
+    <line x1="400" y1="670" x2="400" y2="695" stroke="#333333" stroke-width="2" marker-end="url(#arrowhead)" />
+
+    <circle cx="400" cy="710" r="15" fill="#333333" />
+    <circle cx="400" cy="710" r="20" fill="none" stroke="#333333" stroke-width="2" />
+
+</svg>

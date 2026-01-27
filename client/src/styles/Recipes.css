@@ -294,6 +294,7 @@
   color: #2c3e50;
   line-height: 1.6;
   font-size: 15px;
+  text-align: left;
 }
 
 .step-item:last-child {

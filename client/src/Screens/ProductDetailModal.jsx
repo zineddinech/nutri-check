@@ -142,6 +142,13 @@ function ProductDetailModal({ productId, onClose }) {
     return colors[grade?.toLowerCase()] || "#78909C";
   };
 
+  const getNutriscoreLetter = (grade) => {
+    if (grade && ["a", "b", "c", "d", "e"].includes(grade.toLowerCase())) {
+      return grade.toUpperCase();
+    }
+    return "?";
+  };
+
   const formatDate = (timestamp) => {
     if (!timestamp) return "—";
     const date = new Date(timestamp * 1000);
@@ -235,21 +242,19 @@ function ProductDetailModal({ productId, onClose }) {
               <div className="product-info">
                 <h1 className="product-name">{product.product_name || "—"}</h1>
 
-                {(product.nutrition_grade_fr || product.nutriscore_grade) && (
-                  <div className="nutriscore-container">
-                    <span className="nutriscore-label">Nutri-Score</span>
-                    <div
-                      className="nutriscore-badge"
-                      style={{
-                        backgroundColor: getNutriscoreColor(
-                          product.nutrition_grade_fr || product.nutriscore_grade,
-                        ),
-                      }}
-                    >
-                      {(product.nutrition_grade_fr || product.nutriscore_grade).toUpperCase()}
-                    </div>
+                <div className="nutriscore-container">
+                  <span className="nutriscore-label">Nutri-Score</span>
+                  <div
+                    className="nutriscore-badge"
+                    style={{
+                      backgroundColor: getNutriscoreColor(
+                        product.nutrition_grade_fr || product.nutriscore_grade,
+                      ),
+                    }}
+                  >
+                    {getNutriscoreLetter(product.nutrition_grade_fr || product.nutriscore_grade)}
                   </div>
-                )}
+                </div>
 
                 {product.brands && (
                   <div className="info-badge brand-badge">

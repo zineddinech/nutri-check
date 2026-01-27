@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import "./../styles/Recipes.css";
 import "./../styles/Background.css";
 import { getProductsSearched } from "../services/productService";
-import { useNavigate } from "react-router-dom";
+import ProductDetailModal from "./ProductDetailModal";
 
 function Recipes() {
   const [recipeInput, setRecipeInput] = useState("");
@@ -14,7 +14,7 @@ function Recipes() {
   const [matchedProducts, setMatchedProducts] = useState({}); // index -> product or null
   const [notFoundIngredients, setNotFoundIngredients] = useState([]);
   const [infoMessage, setInfoMessage] = useState(null);
-  const navigate = useNavigate();
+  const [selectedProductId, setSelectedProductId] = useState(null);
 
   const DEFAULT_IMAGE =
     "https://via.placeholder.com/150/e0e0e0/757575?text=Produit";
@@ -579,7 +579,7 @@ function Recipes() {
                           <div
                             key={index}
                             className="product-card-recipe"
-                            onClick={() => navigate(`/produits/${productId}`)}
+                            onClick={() => setSelectedProductId(productId)}
                             style={{ cursor: "pointer" }}
                           >
                             <div className="product-image-container">
@@ -705,6 +705,13 @@ function Recipes() {
           </div>
         )}
       </div>
+
+      {selectedProductId && (
+        <ProductDetailModal
+          productId={selectedProductId}
+          onClose={() => setSelectedProductId(null)}
+        />
+      )}
     </div>
   );
 }

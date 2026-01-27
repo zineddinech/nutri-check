@@ -89,20 +89,24 @@
 /* ==================== BARRE DE RECHERCHE ==================== */
 .search-bar {
   display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: center;
+
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+
+  width: 100%;
+  max-width: 500px;
+}
+
+.search-bar-row {
+  display: flex;
   gap: 10px;
   align-items: center;
-  
-  /* MODIFICATIONS ICI */
-  /* On enlève flex: 1 qui la rendait dépendante des autres */
-  /* flex: 1;  <-- SUPPRIMER CETTE LIGNE */
-  
-  position: absolute;       /* Sort du flux normal */
-  left: 50%;               /* Pousse le bord gauche à 50% du parent */
-  transform: translateX(-50%); /* Recule de 50% de sa propre largeur pour se centrer parfaitement */
-  
-  width: 100%;             /* S'assure qu'elle a de la place */
-  max-width: 500px;        /* Garde votre limite de largeur */
-  justify-content: center; /* Centre le contenu interne */
+  width: 100%;
+  justify-content: center;
 }
 
 .search-input {
@@ -163,6 +167,19 @@
 .clear-button:hover {
   transform: translateY(-2px);
   box-shadow: 0 6px 20px rgba(231, 76, 60, 0.4);
+}
+
+.search-mode-toggle {
+  font-size: 13px;
+  color: #667eea;
+  cursor: pointer;
+  text-decoration: underline;
+  transition: color 0.2s ease;
+  white-space: nowrap;
+}
+
+.search-mode-toggle:hover {
+  color: #764ba2;
 }
 
 /* ==================== TOOLBAR RIGHT ==================== */

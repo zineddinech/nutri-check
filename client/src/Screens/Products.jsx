@@ -6,6 +6,7 @@ import "./../styles/ProductDetailModal.css";
 import {
   getProductsByIndex,
   getProductsSearched,
+  getProductsSearchedByCategory,
 } from "../services/productService";
 import { getConnectedUser } from "../services/authService";
 import {
@@ -237,6 +238,7 @@ function Products() {
   const [page, setPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState("");
   const [activeSearch, setActiveSearch] = useState("");
+  const [searchByCategory, setSearchByCategory] = useState(false);
   const [loading, setLoading] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [favorites, setFavorites] = useState(new Set());
@@ -314,12 +316,10 @@ function Products() {
           preloadedPages.current.delete(targetPage);
         } else {
           if (activeSearch.trim()) {
-            data = await getProductsSearched(
-              activeSearch,
-              targetPage,
-              100,
-              filter,
-            );
+            const searchFn = searchByCategory
+              ? getProductsSearchedByCategory
+              : getProductsSearched;
+            data = await searchFn(activeSearch, targetPage, 100, filter);
           } else {
             data = await getProductsByIndex(sort, targetPage, 100, filter);
           }
@@ -359,9 +359,15 @@ function Products() {
             if (!preloadedPages.current.has(next)) {
               (async () => {
                 try {
-                  const nextData = activeSearch.trim()
-                    ? await getProductsSearched(activeSearch, next, 100, filter)
-                    : await getProductsByIndex(sort, next, 100, filter);
+                  let nextData;
+                  if (activeSearch.trim()) {
+                    const searchFn = searchByCategory
+                      ? getProductsSearchedByCategory
+                      : getProductsSearched;
+                    nextData = await searchFn(activeSearch, next, 100, filter);
+                  } else {
+                    nextData = await getProductsByIndex(sort, next, 100, filter);
+                  }
                   preloadedPages.current.set(next, nextData);
                 } catch {
                   /* silencieux */
@@ -379,7 +385,7 @@ function Products() {
         loadingStateRef.current = false;
       }
     },
-    [activeSearch, sortField, sortOrder, filter],
+    [activeSearch, sortField, sortOrder, filter, searchByCategory],
   );
 
   /** ----------- Scroll infini ----------- */
@@ -413,7 +419,7 @@ function Products() {
     hasMoreRef.current = true;
     preloadedPages.current.clear();
     loadMoreProducts(false, true, 1);
-  }, [sort, activeSearch, filter, loadMoreProducts]);
+  }, [sort, activeSearch, filter, searchByCategory, loadMoreProducts]);
 
   /** ----------- Premier chargement ----------- */
   useEffect(() => {
@@ -529,22 +535,30 @@ function Products() {
           </div>
 
           <div className="search-bar">
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              onKeyPress={handleKeyPress}
-              placeholder="Rechercher un produit..."
-              className="search-input"
-            />
-            <button onClick={handleSearch} className="search-button">
-              🔍 Rechercher
-            </button>
-            {activeSearch && (
-              <button onClick={handleClearSearch} className="clear-button">
-                ✕
+            <div className="search-bar-row">
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                onKeyPress={handleKeyPress}
+                placeholder="Rechercher un produit..."
+                className="search-input"
+              />
+              <button onClick={handleSearch} className="search-button">
+                🔍 Rechercher
               </button>
-            )}
+              {activeSearch && (
+                <button onClick={handleClearSearch} className="clear-button">
+                  ✕
+                </button>
+              )}
+            </div>
+            <span
+              className="search-mode-toggle"
+              onClick={() => setSearchByCategory(!searchByCategory)}
+            >
+              {searchByCategory ? "Chercher par pertinence" : "Chercher par catégorie"}
+            </span>
           </div>
 
           <div className="toolbar-right">

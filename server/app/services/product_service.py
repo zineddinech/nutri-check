@@ -86,6 +86,104 @@ class ProductService:
         user_countries: List[str] | None = None,
     ) -> List[dict]:
         """
+        Recherche des produits avec tri par pertinence (compatibilité).
+        Score de pertinence basé sur product_name :
+        - 3 : correspondance exacte (nom = query)
+        - 2 : commence par la query (préfixe)
+        - 1 : contient la query quelque part
+        """
+        import re
+        db = get_db()
+        skip = (page - 1) * page_size
+
+        # Échapper les caractères spéciaux regex dans la query
+        escaped_query = re.escape(query)
+
+        # Construire le filtre de base sur product_name (toujours string)
+        match_stage: dict = {
+            "product_name": {"$regex": escaped_query, "$options": "i"}
+        }
+
+        # Filtre optionnel sur les allergens
+        if user_allergens:
+            expanded_allergens = []
+            for a in user_allergens:
+                a_lower = a.lower()
+                expanded_allergens.append(a_lower)
+                expanded_allergens.append(f"en:{a_lower}")
+            match_stage["allergens"] = {"$not": {"$in": expanded_allergens}}
+
+        # Filtre optionnel sur les pays
+        if user_countries:
+            match_stage["countries"] = {"$in": user_countries}
+
+        # Pipeline d'agrégation avec score de pertinence
+        pipeline = [
+            # Match : product_name contient la query (insensible à la casse)
+            {"$match": match_stage},
+            # Ajouter score de pertinence basé sur product_name
+            {
+                "$addFields": {
+                    "relevance_score": {
+                        "$switch": {
+                            "branches": [
+                                # Score 3 : correspondance exacte
+                                {
+                                    "case": {
+                                        "$regexMatch": {
+                                            "input": "$product_name",
+                                            "regex": f"^{escaped_query}$",
+                                            "options": "i",
+                                        }
+                                    },
+                                    "then": 3,
+                                },
+                                # Score 2 : commence par la query
+                                {
+                                    "case": {
+                                        "$regexMatch": {
+                                            "input": "$product_name",
+                                            "regex": f"^{escaped_query}",
+                                            "options": "i",
+                                        }
+                                    },
+                                    "then": 2,
+                                },
+                            ],
+                            # Score 1 : contient la query
+                            "default": 1,
+                        }
+                    }
+                }
+            },
+            # Tri par pertinence décroissante, puis alphabétique
+            {"$sort": {"relevance_score": -1, "product_name": 1}},
+            # Pagination
+            {"$skip": skip},
+            {"$limit": page_size},
+            # Supprimer le champ temporaire
+            {"$unset": "relevance_score"},
+        ]
+
+        products = await db["products"].aggregate(pipeline).to_list(length=page_size)
+
+        # Enrichir chaque produit avec les valeurs nutritionnelles
+        enriched_products = [
+            ProductService.enrich_product_with_nutrition(product)
+            for product in products
+        ]
+
+        return enriched_products
+
+    @staticmethod
+    async def search_products_by_category(
+        query: str,
+        page: int,
+        page_size: int,
+        user_allergens: List[str] | None = None,
+        user_countries: List[str] | None = None,
+    ) -> List[dict]:
+        """
         Recherche des produits optionnellement filtrés dans la collection locale MongoDB.
         Utilise une recherche au début du nom du produit pour éviter les faux positifs.
         Exemple: 'poivre' trouve 'Poivre noir' mais pas 'Saucisse au poivre'.
@@ -120,13 +218,13 @@ class ProductService:
         products_cursor = db["products"].find(filter_query).skip(skip).limit(page_size)
 
         products = await products_cursor.to_list(length=page_size)
-        
+
         # Enrichir chaque produit avec les valeurs nutritionnelles
         enriched_products = [
             ProductService.enrich_product_with_nutrition(product)
             for product in products
         ]
-        
+
         return enriched_products
 
     @staticmethod

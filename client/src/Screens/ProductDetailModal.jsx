@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from "react";
 import { getProductById } from "../services/productService";
+import ImageCache from "../services/imageCache";
+import { fetchImageFromOFF, fetchImageByProductName } from "../services/imageService";
 import "./../styles/ProductDetailModal.css";
 import { MapContainer, TileLayer, Marker, Popup, GeoJSON } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
-
-const OFF_PRODUCT_BY_CODE = "https://world.openfoodfacts.org/api/v2/product/";
 
 function ProductDetailModal({ productId, onClose }) {
   const [product, setProduct] = useState(null);
@@ -45,72 +45,11 @@ function ProductDetailModal({ productId, onClose }) {
     };
   }, [productId]);
 
-  // 2) Charger l'image OFF *après* que le produit soit là (en parallèle)
+  // 2) Charger l'image OFF *après* que le produit soit là
   useEffect(() => {
     if (!product) return;
 
     let cancelled = false;
-
-    const loadImageByName = async (name) => {
-      try {
-        const response = await fetch(
-          `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(
-            name,
-          )}&search_simple=1&action=process&json=1&page_size=1`,
-        );
-
-        if (!response.ok) throw new Error("Image non disponible");
-
-        const data = await response.json();
-        const img =
-          data?.products?.[0]?.image_front_url ||
-          data?.products?.[0]?.image_url;
-
-        if (!cancelled) {
-          if (img) {
-            setImage(img);
-          } else {
-            setImageError(true);
-          }
-        }
-      } catch {
-        if (!cancelled) setImageError(true);
-      }
-    };
-
-    const loadImageByCode = async (code, productName) => {
-      try {
-        const resp = await fetch(`${OFF_PRODUCT_BY_CODE}${code}.json`);
-        if (!resp.ok) throw new Error("Image non disponible");
-
-        const data = await resp.json();
-        const prod = data.product || {};
-
-        const img =
-          prod.image_front_url ||
-          prod.image_front_small_url ||
-          prod.image_url;
-
-        if (!cancelled) {
-          if (img) {
-            setImage(img);
-          } else if (productName) {
-            loadImageByName(productName);
-          } else {
-            setImageError(true);
-          }
-        }
-      } catch (e) {
-        if (!cancelled) {
-          if (productName) {
-            loadImageByName(productName);
-          } else {
-            setImageError(true);
-          }
-        }
-      }
-    };
-
     const code = product?.code;
     const name = product?.product_name;
 
@@ -118,10 +57,49 @@ function ProductDetailModal({ productId, onClose }) {
     setImageLoaded(false);
     setImageError(false);
 
-    if (code) {
-      loadImageByCode(code, name);
-    } else if (name) {
-      loadImageByName(name);
+    const loadImage = async () => {
+      // 1. Vérifier le cache d'abord
+      if (code) {
+        const cachedImg = ImageCache.getImage(code);
+        if (cachedImg) {
+          if (!cancelled) setImage(cachedImg);
+          return;
+        }
+      }
+
+      // 2. Charger depuis OFF par code
+      if (code) {
+        const img = await fetchImageFromOFF(code);
+        if (!cancelled) {
+          if (img) {
+            ImageCache.setImage(code, img);
+            setImage(img);
+            return;
+          }
+        }
+      }
+
+      // 3. Fallback: chercher par nom
+      if (name) {
+        const img = await fetchImageByProductName(name);
+        if (!cancelled) {
+          if (img) {
+            if (code) ImageCache.setImage(code, img);
+            setImage(img);
+            return;
+          }
+        }
+      }
+
+      // 4. Aucune image trouvée
+      if (!cancelled) {
+        if (code) ImageCache.setNoImage(code);
+        setImageError(true);
+      }
+    };
+
+    if (code || name) {
+      loadImage();
     } else {
       setImageError(true);
     }

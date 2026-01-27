@@ -294,10 +294,20 @@
 }
 
 .favorite-date {
-  margin-top: 8px;
-  font-size: 0.85rem;
+  margin: 0;
+  font-size: 0.8rem;
   color: #999;
   font-style: italic;
+}
+
+/* ==================== FOOTER ANCRÉ EN BAS ==================== */
+.card-footer-anchored {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding-top: 8px;
 }
 
 /* ==================== CONTENU CARTE ==================== */
@@ -313,8 +323,8 @@
   align-items: center;
   justify-content: center;
   gap: 4px;
-  margin-top: auto;
-  padding-top: 4px;
+  margin-top: 0;
+  padding-top: 0;
   color: #888;
   font-size: 0.9rem;
 }

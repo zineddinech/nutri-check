@@ -6,6 +6,8 @@ import "./../styles/ProductDetailModal.css";
 import { getConnectedUser } from "../services/authService";
 import { getUserFavorites, removeFavorite, getFavoriteCount } from "../services/favoritesService";
 import { getProductById } from "../services/productService";
+import ImageCache from "../services/imageCache";
+import { fetchImageFromOFF, fetchImageByProductName } from "../services/imageService";
 import ProductDetailModal from "./ProductDetailModal";
 
 // Fonction pour obtenir la couleur du Nutriscore (couleurs flashy)
@@ -69,8 +71,6 @@ const ImageWithLoader = ({ code, alt, productName }) => {
   const [hasError, setHasError] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
-  const OFF_PRODUCT_BY_CODE = "https://world.openfoodfacts.org/api/v2/product/";
-
   useEffect(() => {
     let cancelled = false;
     setIsLoading(true);
@@ -78,79 +78,54 @@ const ImageWithLoader = ({ code, alt, productName }) => {
     setImage(null);
     setIsLoaded(false);
 
-    const loadImageByName = async (name) => {
-      try {
-        const response = await fetch(
-          `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(
-            name
-          )}&search_simple=1&action=process&json=1&page_size=1`
-        );
-
-        if (!response.ok) throw new Error("Image non disponible");
-
-        const data = await response.json();
-        const img =
-          data?.products?.[0]?.image_front_url ||
-          data?.products?.[0]?.image_url;
-
+    const loadImage = async () => {
+      // 1. Vérifier le cache d'abord
+      const cachedImg = ImageCache.getImage(code);
+      if (cachedImg) {
         if (!cancelled) {
-          if (img) {
-            setImage(img);
-          } else {
-            setHasError(true);
-          }
+          setImage(cachedImg);
           setIsLoading(false);
         }
-      } catch {
-        if (!cancelled) {
-          setHasError(true);
-          setIsLoading(false);
-        }
+        return;
       }
-    };
 
-    const loadImageByCode = async (productCode, name) => {
-      try {
-        const resp = await fetch(`${OFF_PRODUCT_BY_CODE}${productCode}.json`);
-        if (!resp.ok) throw new Error("Image non disponible");
-
-        const data = await resp.json();
-        const prod = data.product || {};
-
-        const img =
-          prod.image_front_url || prod.image_front_small_url || prod.image_url;
-
+      // 2. Charger depuis OFF par code
+      if (code) {
+        const img = await fetchImageFromOFF(code);
         if (!cancelled) {
           if (img) {
+            ImageCache.setImage(code, img);
+            setHasError(false);
             setImage(img);
             setIsLoading(false);
-          } else if (name) {
-            loadImageByName(name);
-          } else {
-            setHasError(true);
-            setIsLoading(false);
-          }
-        }
-      } catch {
-        if (!cancelled) {
-          if (name) {
-            loadImageByName(name);
-          } else {
-            setHasError(true);
-            setIsLoading(false);
+            return;
           }
         }
       }
+
+      // 3. Fallback: chercher par nom
+      if (productName) {
+        const img = await fetchImageByProductName(productName);
+        if (!cancelled) {
+          if (img) {
+            if (code) ImageCache.setImage(code, img);
+            setHasError(false);
+            setImage(img);
+            setIsLoading(false);
+            return;
+          }
+        }
+      }
+
+      // 4. Aucune image trouvée
+      if (!cancelled) {
+        if (code) ImageCache.setNoImage(code);
+        setHasError(true);
+        setIsLoading(false);
+      }
     };
 
-    if (code) {
-      loadImageByCode(code, productName);
-    } else if (productName) {
-      loadImageByName(productName);
-    } else {
-      setHasError(true);
-      setIsLoading(false);
-    }
+    loadImage();
 
     return () => {
       cancelled = true;
@@ -394,13 +369,15 @@ function Favorites() {
                         {compatibility}% compatible
                       </div>
                     )}
+                  </div>
 
+                  {/* Bloc ancré en bas : date + compteur favoris */}
+                  <div className="card-footer-anchored">
                     {fav.created_at && (
                       <p className="favorite-date">
                         Ajouté le {new Date(fav.created_at).toLocaleDateString("fr-FR")}
                       </p>
                     )}
-
                     <FavoriteCount productId={code} />
                   </div>
                 </div>

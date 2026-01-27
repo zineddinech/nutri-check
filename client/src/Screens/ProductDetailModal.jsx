@@ -309,57 +309,45 @@ function ProductDetailModal({ productId, onClose }) {
             </div>
 
             {/* Section Valeurs Nutritionnelles */}
-            <div className="nutrition-section">
-              <div className="section-header">
-                <h2 className="section-title">
-                  Valeurs nutritionnelles
-                  <span className="subtitle">(pour 100g)</span>
-                </h2>
-              </div>
+            {(() => {
+              const nutritionData = [
+                { icon: "⚡", label: "Énergie", value: product.energy_100g, unit: "kJ", gradient: "linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%)" },
+                { icon: "🧈", label: "Matières grasses", value: product.fat_100g, unit: "g", gradient: "linear-gradient(135deg, #ffd93d 0%, #fcbf49 100%)" },
+                { icon: "🍬", label: "Sucres", value: product.sugars_100g, unit: "g", gradient: "linear-gradient(135deg, #6bcf7f 0%, #4ecdc4 100%)" },
+                { icon: "💪", label: "Protéines", value: product.proteins_100g, unit: "g", gradient: "linear-gradient(135deg, #4d96ff 0%, #6c63ff 100%)" },
+                { icon: "🧂", label: "Sel", value: product.salt_100g, unit: "g", gradient: "linear-gradient(135deg, #a29bfe 0%, #8e82fe 100%)" },
+              ];
+              const availableNutrition = nutritionData.filter(n => n.value !== null && n.value !== undefined);
 
-              <div className="nutrition-grid">
-                <NutritionCard
-                  icon="⚡"
-                  label="Énergie"
-                  value={product.energy_100g}
-                  unit="kJ"
-                  color="#ff6b6b"
-                  gradient="linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%)"
-                />
-                <NutritionCard
-                  icon="🧈"
-                  label="Matières grasses"
-                  value={product.fat_100g}
-                  unit="g"
-                  color="#ffd93d"
-                  gradient="linear-gradient(135deg, #ffd93d 0%, #fcbf49 100%)"
-                />
-                <NutritionCard
-                  icon="🍬"
-                  label="Sucres"
-                  value={product.sugars_100g}
-                  unit="g"
-                  color="#6bcf7f"
-                  gradient="linear-gradient(135deg, #6bcf7f 0%, #4ecdc4 100%)"
-                />
-                <NutritionCard
-                  icon="💪"
-                  label="Protéines"
-                  value={product.proteins_100g}
-                  unit="g"
-                  color="#4d96ff"
-                  gradient="linear-gradient(135deg, #4d96ff 0%, #6c63ff 100%)"
-                />
-                <NutritionCard
-                  icon="🧂"
-                  label="Sel"
-                  value={product.salt_100g}
-                  unit="g"
-                  color="#a29bfe"
-                  gradient="linear-gradient(135deg, #a29bfe 0%, #8e82fe 100%)"
-                />
-              </div>
-            </div>
+              return (
+                <div className="nutrition-section">
+                  <div className="section-header">
+                    <h2 className="section-title">
+                      Valeurs nutritionnelles
+                      <span className="subtitle">(pour 100g)</span>
+                      {availableNutrition.length === 0 && (
+                        <span className="subtitle unavailable"> — Indisponibles</span>
+                      )}
+                    </h2>
+                  </div>
+
+                  {availableNutrition.length > 0 && (
+                    <div className="nutrition-grid">
+                      {availableNutrition.map((n, idx) => (
+                        <NutritionCard
+                          key={idx}
+                          icon={n.icon}
+                          label={n.label}
+                          value={n.value}
+                          unit={n.unit}
+                          gradient={n.gradient}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
           </div>
 
           {/* Section droite: Carte */}
@@ -381,14 +369,8 @@ function NutritionCard({ icon, label, value, unit, gradient }) {
       <div className="nutrition-details">
         <span className="nutrition-label">{label}</span>
         <div className="nutrition-value">
-          {value !== null && value !== undefined ? (
-            <>
-              <span className="value-number">{value}</span>
-              <span className="value-unit">{unit}</span>
-            </>
-          ) : (
-            <span className="not-available">Non disponible</span>
-          )}
+          <span className="value-number">{value}</span>
+          <span className="value-unit">{unit}</span>
         </div>
       </div>
     </div>

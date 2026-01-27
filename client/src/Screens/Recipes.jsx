@@ -319,13 +319,24 @@ function Recipes() {
     }
 
     setMatchesLoading(true);
-    const matched = {};
-    const notFound = [];
+    setMatchedProducts({});
+    setNotFoundIngredients([]);
 
-    // limiter le nombre de requêtes simultanées si nécessaire
+    let completedCount = 0;
+    const totalCount = ingredients.length;
+
     const promises = ingredients.map(async (ing, idx) => {
       const rawName = ing?.name || ing || "";
       const query = normalizeIngredientName(rawName) || rawName;
+
+      const updateProduct = (product) => {
+        setMatchedProducts((prev) => ({ ...prev, [idx]: product }));
+      };
+
+      const markNotFound = () => {
+        setMatchedProducts((prev) => ({ ...prev, [idx]: null }));
+        setNotFoundIngredients((prev) => [...prev, rawName]);
+      };
 
       try {
         // recherche floue : on demande 3 résultats et on score chacun
@@ -341,7 +352,7 @@ function Recipes() {
 
           // Si le meilleur score est trop faible, on considère qu'on n'a pas trouvé
           if (scored[0].score >= 50) {
-            matched[idx] = scored[0].product;
+            updateProduct(scored[0].product);
           } else {
             // Essayer une recherche par tokens
             const tokens = query.split(/\s+/).filter(Boolean);
@@ -364,11 +375,8 @@ function Recipes() {
                 // ignore
               }
             }
-            if (found) matched[idx] = found;
-            else {
-              matched[idx] = null;
-              notFound.push(rawName);
-            }
+            if (found) updateProduct(found);
+            else markNotFound();
           }
         } else {
           // si rien, tenter une recherche par token (dernier mot)
@@ -393,23 +401,20 @@ function Recipes() {
             }
           }
 
-          if (found) matched[idx] = found;
-          else {
-            matched[idx] = null;
-            notFound.push(rawName);
-          }
+          if (found) updateProduct(found);
+          else markNotFound();
         }
       } catch (e) {
-        matched[idx] = null;
-        notFound.push(rawName);
+        markNotFound();
+      } finally {
+        completedCount++;
+        if (completedCount === totalCount) {
+          setMatchesLoading(false);
+        }
       }
     });
 
     await Promise.all(promises);
-
-    setMatchedProducts(matched);
-    setNotFoundIngredients(notFound);
-    setMatchesLoading(false);
   }
 
   const handleClear = () => {

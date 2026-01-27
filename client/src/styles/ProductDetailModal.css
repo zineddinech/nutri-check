@@ -289,11 +289,15 @@
 }
 
 .modal-content .subtitle {
-    display: block;
     font-size: 13px;
     font-weight: 400;
     color: #757575;
-    margin-top: 4px;
+    margin-left: 8px;
+}
+
+.modal-content .subtitle.unavailable {
+    color: #e74c3c;
+    font-style: italic;
 }
 
 .modal-content .nutrition-grid {

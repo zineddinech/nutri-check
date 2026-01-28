@@ -47,8 +47,6 @@ jobs:
         working-directory: server
         run: |
           poetry config virtualenvs.in-project true
-          # On force l'installation à chaque fois. 
-          # Si le cache est bon, c'est instantané. S'il est cassé, Poetry le répare.
           poetry install --no-interaction --no-ansi
 
       - name: Exécution des Linters (Black, Isort, Mypy)
@@ -98,7 +96,6 @@ jobs:
       - name: Construction des artefacts
         working-directory: server
         run: |
-          # Exemple de build
           echo "Construction du serveur terminée"
 
   #---
@@ -155,6 +152,14 @@ jobs:
 
       - name: Exécution des Tests (Pytest)
         working-directory: server
+        # --- AJOUT DES VARIABLES D'ENVIRONNEMENT ICI ---
+        env:
+          # On met une fausse clé pour passer la validation au démarrage
+          GOOGLE_API_KEY: "dummy_key_for_ci_tests"
+          # On ajoute aussi souvent ces clés pour éviter d'autres erreurs :
+          SECRET_KEY: "super_secret_key_for_tests"
+          ALGORITHM: "HS256"
+          MONGODB_URL: "mongodb://localhost:27017/test_db"
         run: |
           export PYTHONPATH="$PWD/.."
           poetry run pytest --junitxml=test-report.xml

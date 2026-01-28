@@ -1,7 +1,6 @@
 from fastapi import APIRouter, HTTPException, Query
 
-from ...schemas.passwordReset import (ForgotPasswordRequest,
-                                      ResetPasswordRequest)
+from ...schemas.passwordReset import ForgotPasswordRequest, ResetPasswordRequest
 from ...schemas.user import UserResponse
 from ...services.auth_service import get_current_user
 from ...services.user_service import UserService

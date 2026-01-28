@@ -78,7 +78,9 @@ async def search_products_by_category(
 async def search_products_exact(
     query: str = Query(..., description="Terme de recherche exact"),
     page: int = Query(1, ge=1, description="Numéro de page"),
-    page_size: int = Query(10, ge=1, le=100, description="Nombre de résultats par page"),
+    page_size: int = Query(
+        10, ge=1, le=100, description="Nombre de résultats par page"
+    ),
 ):
     """
     Recherche les produits avec correspondance exacte sur le nom.

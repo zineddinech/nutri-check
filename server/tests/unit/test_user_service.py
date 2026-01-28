@@ -291,8 +291,7 @@ async def test_request_password_reset_email_sent(mock_db, monkeypatch):
     def mock_send_email(email, code):
         email_sent.append({"email": email, "code": code})
 
-    monkeypatch.setattr(
-        "app.services.user_service.send_reset_email", mock_send_email)
+    monkeypatch.setattr("app.services.user_service.send_reset_email", mock_send_email)
 
     await UserService.request_password_reset("test@test.com")
     assert len(email_sent) == 1
@@ -334,10 +333,8 @@ async def test_reset_password_success(mock_db):
 
     # Vérifier que le mot de passe a changé
     user = await mock_db["users"].find_one({"email": "test@test.com"})
-    assert UserService.verify_password(
-        "newpassword123", user["hashed_password"])
-    assert not UserService.verify_password(
-        "oldpassword123", user["hashed_password"])
+    assert UserService.verify_password("newpassword123", user["hashed_password"])
+    assert not UserService.verify_password("oldpassword123", user["hashed_password"])
 
     # Vérifier que le code de réinitialisation a été supprimé
     assert "reset_code" not in user or user.get("reset_code") == ""
@@ -499,9 +496,7 @@ async def test_authenticate_user_user_not_found(mock_db):
     """
     Teste que l'authentification échoue si l'utilisateur n'existe pas.
     """
-    token = await UserService.authenticate_user(
-        "nonexistent@test.com", "anypassword"
-    )
+    token = await UserService.authenticate_user("nonexistent@test.com", "anypassword")
     assert token is None
 
 
@@ -578,8 +573,7 @@ async def test_create_user_password_hashed(mock_db):
 
     user = await mock_db["users"].find_one({"email": "newuser@test.com"})
     assert user["hashed_password"] != "newpassword123"
-    assert UserService.verify_password(
-        "newpassword123", user["hashed_password"])
+    assert UserService.verify_password("newpassword123", user["hashed_password"])
 
 
 @pytest.mark.asyncio

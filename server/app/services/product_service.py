@@ -12,7 +12,7 @@ class ProductService:
         """
         Extrait les valeurs nutritionnelles du champ 'nutriments' de MongoDB.
         Convertit les valeurs en float pour normaliser les types.
-        
+
         Example:
             nutriments = {
                 "sugars_100g": 0,
@@ -21,7 +21,7 @@ class ProductService:
                 "fat_100g": 57.14,
                 "energy_100g": 2389
             }
-            
+
             Retourne: {
                 "sugars_100g": 0.0,
                 "proteins_100g": 0.0,
@@ -31,10 +31,10 @@ class ProductService:
             }
         """
         nutrition = {}
-        
+
         if not nutriments or not isinstance(nutriments, dict):
             return nutrition
-        
+
         # Champs nutritionnels à extraire
         nutrition_fields = [
             "energy_100g",
@@ -42,9 +42,9 @@ class ProductService:
             "sugar_100g",
             "sugars_100g",  # Alias pour sugar_100g
             "proteins_100g",
-            "salt_100g"
+            "salt_100g",
         ]
-        
+
         for field in nutrition_fields:
             if field in nutriments:
                 value = nutriments[field]
@@ -53,11 +53,11 @@ class ProductService:
                     nutrition[field] = float(value) if value is not None else None
                 except (ValueError, TypeError):
                     nutrition[field] = None
-        
+
         # Si 'sugars_100g' existe mais pas 'sugar_100g', créer un alias
         if "sugars_100g" in nutrition and "sugar_100g" not in nutrition:
             nutrition["sugar_100g"] = nutrition["sugars_100g"]
-        
+
         return nutrition
 
     @staticmethod
@@ -67,7 +67,7 @@ class ProductService:
         """
         if not product:
             return product
-        
+
         # Si le produit a un champ 'nutriments', extraire les valeurs
         if "nutriments" in product and product["nutriments"]:
             nutrition = ProductService.extract_nutrition_from_nutriments(
@@ -75,8 +75,9 @@ class ProductService:
             )
             # Mettre à jour le produit avec les valeurs nutritionnelles
             product.update(nutrition)
-        
+
         return product
+
     @staticmethod
     async def search_products(
         query: str,
@@ -93,6 +94,7 @@ class ProductService:
         - 1 : contient la query quelque part
         """
         import re
+
         db = get_db()
         skip = (page - 1) * page_size
 
@@ -100,9 +102,7 @@ class ProductService:
         escaped_query = re.escape(query)
 
         # Construire le filtre de base sur product_name (toujours string)
-        match_stage: dict = {
-            "product_name": {"$regex": escaped_query, "$options": "i"}
-        }
+        match_stage: dict = {"product_name": {"$regex": escaped_query, "$options": "i"}}
 
         # Filtre optionnel sur les allergens
         if user_allergens:
@@ -193,12 +193,7 @@ class ProductService:
 
         # Utilise une recherche au DÉBUT du nom du produit (ancre ^)
         # case-insensitive pour être flexible
-        filter_query = {
-            "_keywords": {
-                "$regex": f"^{query}",
-                "$options": "i"
-            }
-        }
+        filter_query = {"_keywords": {"$regex": f"^{query}", "$options": "i"}}
         # Filtre optionnel sur les allergens
         if user_allergens:
             # FIXME: solution temporaire car le format des allergens peut varier dans la db actuellement
@@ -255,7 +250,7 @@ class ProductService:
                     "$expr": {
                         "$eq": [
                             {"$toLower": {"$trim": {"input": "$product_name"}}},
-                            normalized_query
+                            normalized_query,
                         ]
                     }
                 }
@@ -345,13 +340,13 @@ class ProductService:
             .limit(page_size)
         )
         products = await products_cursor.to_list(length=page_size)
-        
+
         # Enrichir chaque produit avec les valeurs nutritionnelles
         enriched_products = [
             ProductService.enrich_product_with_nutrition(product)
             for product in products
         ]
-        
+
         return enriched_products
 
     @staticmethod
@@ -362,8 +357,8 @@ class ProductService:
         """
         db = get_db()
         product = await db["products"].find_one({"_id": product_id})
-        
+
         # Enrichir le produit avec les valeurs nutritionnelles
         enriched_product = ProductService.enrich_product_with_nutrition(product)
-        
+
         return enriched_product

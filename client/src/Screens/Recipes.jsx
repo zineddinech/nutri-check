@@ -1,7 +1,9 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import "./../styles/Recipes.css";
 import "./../styles/Background.css";
 import { getProductsSearched } from "../services/productService";
+import ImageCache from "../services/imageCache";
+import { fetchImageFromOFF, fetchImageByProductName } from "../services/imageService";
 import ProductDetailModal from "./ProductDetailModal";
 
 function Recipes() {
@@ -19,8 +21,113 @@ function Recipes() {
   const DEFAULT_IMAGE =
     "https://via.placeholder.com/150/e0e0e0/757575?text=Produit";
 
-  const API_BASE = "http://localhost:8000";
-  const getLocalImage = (code) => `${API_BASE}/images/${code}.jpg`;
+  // Composant ImageWithLoader identique à Products.jsx et favorites.jsx
+  const ImageWithLoader = ({ code, alt, productName }) => {
+    const [isLoaded, setIsLoaded] = useState(false);
+    const [image, setImage] = useState(null);
+    const [isLoading, setIsLoading] = useState(true);
+    const [hasError, setHasError] = useState(false);
+
+    useEffect(() => {
+      let cancelled = false;
+      setIsLoading(true);
+      setHasError(false);
+      setImage(null);
+      setIsLoaded(false);
+
+      const loadImage = async () => {
+        // 1. Vérifier le cache d'abord
+        if (code) {
+          const cachedImg = ImageCache.getImage(code);
+          if (cachedImg) {
+            if (!cancelled) {
+              setImage(cachedImg);
+              setIsLoading(false);
+            }
+            return;
+          }
+
+          // Vérifier si marqué comme sans image
+          if (ImageCache.hasNoImage(code)) {
+            if (!cancelled) {
+              setHasError(true);
+              setIsLoading(false);
+            }
+            return;
+          }
+        }
+
+        // 2. Charger depuis OFF par code
+        if (code) {
+          const img = await fetchImageFromOFF(code);
+          if (!cancelled) {
+            if (img) {
+              ImageCache.setImage(code, img);
+              setHasError(false);
+              setImage(img);
+              setIsLoading(false);
+              return;
+            }
+          }
+        }
+
+        // 3. Fallback: chercher par nom
+        if (productName) {
+          const img = await fetchImageByProductName(productName);
+          if (!cancelled) {
+            if (img) {
+              if (code) ImageCache.setImage(code, img);
+              setHasError(false);
+              setImage(img);
+              setIsLoading(false);
+              return;
+            }
+          }
+        }
+
+        // 4. Aucune image trouvée
+        if (!cancelled) {
+          if (code) ImageCache.setNoImage(code);
+          setHasError(true);
+          setIsLoading(false);
+        }
+      };
+
+      if (code || productName) {
+        loadImage();
+      } else {
+        setHasError(true);
+        setIsLoading(false);
+      }
+
+      return () => {
+        cancelled = true;
+      };
+    }, [code, productName]);
+
+    if (hasError || (!isLoading && !image)) {
+      return (
+        <div className="no-image-placeholder">
+          <span className="no-image-icon">📷</span>
+          <span>Pas d'image</span>
+        </div>
+      );
+    }
+
+    return (
+      <>
+        {!isLoaded && <div className="image-skeleton"></div>}
+        <img
+          src={image}
+          alt={alt}
+          className={`product-image ${isLoaded ? "visible" : ""}`}
+          loading="lazy"
+          onLoad={() => setIsLoaded(true)}
+          onError={() => setHasError(true)}
+        />
+      </>
+    );
+  };
 
   // Appeler l'IA pour analyser la recette
   const analyzeRecipe = async (recipe) => {
@@ -573,7 +680,6 @@ function Recipes() {
 
                       if (prod) {
                         const code = prod.code ?? prod._id ?? prod.id;
-                        const imageUrl = code ? getLocalImage(code) : null;
                         const productId = prod._id || prod.id;
                         const nutri =
                           prod.nutriscore_score ||
@@ -588,19 +694,11 @@ function Recipes() {
                             style={{ cursor: "pointer" }}
                           >
                             <div className="product-image-container">
-                              {!imageUrl ? (
-                                <div className="image-skeleton"></div>
-                              ) : (
-                                <img
-                                  src={imageUrl}
-                                  alt={prod.product_name || "produit"}
-                                  className="product-image visible"
-                                  loading="lazy"
-                                  onError={(e) => {
-                                    e.target.src = DEFAULT_IMAGE;
-                                  }}
-                                />
-                              )}
+                              <ImageWithLoader
+                                code={code}
+                                alt={prod.product_name || "produit"}
+                                productName={prod.product_name}
+                              />
                             </div>
 
                             <div className="product-info-recipe">

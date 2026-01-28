@@ -9,8 +9,7 @@ from passlib.context import CryptContext
 
 from utils.email import send_reset_email
 
-from ..core.config import (ACCESS_TOKEN_EXPIRE_MINUTES, JWT_ALGORITHM,
-                           JWT_SECRET_KEY)
+from ..core.config import ACCESS_TOKEN_EXPIRE_MINUTES, JWT_ALGORITHM, JWT_SECRET_KEY
 from ..database.database import get_db
 from ..schemas.user import UserCreate, UserResponse, UserUpdate
 

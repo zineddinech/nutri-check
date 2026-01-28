@@ -228,6 +228,53 @@ class ProductService:
         return enriched_products
 
     @staticmethod
+    async def search_products_exact(
+        query: str,
+        page: int = 1,
+        page_size: int = 10,
+    ) -> List[dict]:
+        """
+        Recherche des produits avec correspondance STRICTEMENT exacte sur le nom.
+        Seuls les produits dont le product_name est exactement égal à la query sont retournés.
+        La comparaison est insensible à la casse.
+
+        Exemple:
+        - "ail" → trouve "Ail", "ail", "AIL"
+        - "ail" → ne trouve PAS "Ails", "ail blanc", "huile d'ail"
+        """
+        db = get_db()
+        skip = (page - 1) * page_size
+
+        # Normaliser la query
+        normalized_query = query.lower().strip()
+
+        # Utiliser l'agrégation avec $toLower et $trim pour une comparaison stricte
+        pipeline = [
+            {
+                "$match": {
+                    "$expr": {
+                        "$eq": [
+                            {"$toLower": {"$trim": {"input": "$product_name"}}},
+                            normalized_query
+                        ]
+                    }
+                }
+            },
+            {"$skip": skip},
+            {"$limit": page_size},
+        ]
+
+        products = await db["products"].aggregate(pipeline).to_list(length=page_size)
+
+        # Enrichir chaque produit avec les valeurs nutritionnelles
+        enriched_products = [
+            ProductService.enrich_product_with_nutrition(product)
+            for product in products
+        ]
+
+        return enriched_products
+
+    @staticmethod
     async def get_products_sorted(
         sort_by: str,
         page: int,

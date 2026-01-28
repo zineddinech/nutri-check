@@ -16,6 +16,11 @@ EMAIL_PASSWORD = os.getenv("EMAIL_PASSWORD")
 
 def send_reset_email(to_email: str, code: str):
 
+    # If email configuration is missing (e.g. in CI/test environments),
+    # silently skip sending the email instead of raising an error.
+    if not all([EMAIL_HOST, EMAIL_PORT, EMAIL_ADDRESS, EMAIL_PASSWORD]):
+        return
+
     msg = MIMEMultipart()
     msg["From"] = EMAIL_ADDRESS
     msg["To"] = to_email

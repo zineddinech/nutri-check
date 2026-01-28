@@ -11,7 +11,7 @@ const BASE_URL = "http://localhost:8000";
 async function apiRegisterUser({ email, first_name, last_name, password }) {
   const payload = {
     email,
-    username: email, // <<--- username = email
+    username: first_name + " " + last_name,
     first_name,
     last_name,
     password,
@@ -43,7 +43,7 @@ async function apiAddAllergies(userId, allergies) {
         "Content-Type": "application/json",
       },
       body: JSON.stringify(allergies), // ex: ["Milk","Sesame seeds"]
-    }
+    },
   );
 
   if (!res.ok) {
@@ -63,7 +63,7 @@ async function apiAddCountries(userId, countries) {
         "Content-Type": "application/json",
       },
       body: JSON.stringify(countries),
-    }
+    },
   );
 
   if (!res.ok) {
@@ -104,7 +104,7 @@ function Register() {
     // Validation minimale côté mot de passe
     if (password !== confirm || password.length < 8) {
       setSubmitError(
-        "Mot de passe invalide (au moins 8 caractères et confirmation identique)."
+        "Mot de passe invalide (au moins 8 caractères et confirmation identique).",
       );
       return;
     }
@@ -134,16 +134,20 @@ function Register() {
       // 2) Add allergies and countries
       const cleanAllergies = Array.from(
         new Set(
-          (allergies || []).map((a) => a && a.toString().trim()).filter(Boolean)
-        )
+          (allergies || [])
+            .map((a) => a && a.toString().trim())
+            .filter(Boolean),
+        ),
       );
       if (cleanAllergies.length > 0) {
         await apiAddAllergies(userId, cleanAllergies);
       }
       const cleanCountries = Array.from(
         new Set(
-          (countries || []).map((a) => a && a.toString().trim()).filter(Boolean)
-        )
+          (countries || [])
+            .map((a) => a && a.toString().trim())
+            .filter(Boolean),
+        ),
       );
       if (cleanCountries.length > 0) {
         await apiAddCountries(userId, cleanCountries);
@@ -185,10 +189,10 @@ function Register() {
           {step === 1
             ? "Inscription"
             : step === 2
-            ? "Restrictions"
-            : step === 3
-            ? "Pays"
-            : "Mot de passe"}
+              ? "Restrictions"
+              : step === 3
+                ? "Pays"
+                : "Mot de passe"}
         </h1>
 
         {/* Stepper simple */}

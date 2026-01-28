@@ -6,6 +6,27 @@ import ImageCache from "../services/imageCache";
 import { fetchImageFromOFF, fetchImageByProductName } from "../services/imageService";
 import ProductDetailModal from "./ProductDetailModal";
 
+// Fonction pour obtenir la couleur du Nutriscore (couleurs flashy)
+const getNutriscoreColor = (grade) => {
+  const colors = {
+    a: "#00C853", // Vert flashy
+    b: "#76FF03", // Vert lime vif
+    c: "#FFD600", // Jaune vif
+    d: "#FF9100", // Orange vif
+    e: "#FF1744", // Rouge vif
+  };
+  return colors[grade?.toLowerCase()] || "#78909C"; // Gris bleuté par défaut
+};
+
+// Fonction pour obtenir la lettre du Nutriscore
+const getNutriscoreLetter = (product) => {
+  const grade = product.nutrition_grade_fr || product.nutriscore_grade;
+  if (grade && ["a", "b", "c", "d", "e"].includes(grade.toLowerCase())) {
+    return grade.toUpperCase();
+  }
+  return "?";
+};
+
 function Recipes() {
   const [recipeInput, setRecipeInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -681,10 +702,8 @@ function Recipes() {
                       if (prod) {
                         const code = prod.code ?? prod._id ?? prod.id;
                         const productId = prod._id || prod.id;
-                        const nutri =
-                          prod.nutriscore_score ||
-                          prod.nutrition_grade_fr ||
-                          "—";
+                        const nutriscoreLetter = getNutriscoreLetter(prod);
+                        const nutriscoreColor = getNutriscoreColor(nutriscoreLetter);
 
                         return (
                           <div
@@ -693,6 +712,16 @@ function Recipes() {
                             onClick={() => setSelectedProductId(productId)}
                             style={{ cursor: "pointer" }}
                           >
+                            <div className="card-header-recipe">
+                              <div
+                                className="nutriscore-circle"
+                                style={{ backgroundColor: nutriscoreColor }}
+                                title={`Nutri-Score ${nutriscoreLetter}`}
+                              >
+                                {nutriscoreLetter}
+                              </div>
+                            </div>
+
                             <div className="product-image-container">
                               <ImageWithLoader
                                 code={code}
@@ -713,9 +742,6 @@ function Recipes() {
                                   {prod.brands}
                                 </div>
                               )}
-                              <div className="product-nutri">
-                                Nutri-Score: {nutri}
-                              </div>
                             </div>
                           </div>
                         );

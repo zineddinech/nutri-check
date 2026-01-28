@@ -530,8 +530,14 @@ function Products() {
                 placeholder="Rechercher un produit..."
                 className="search-input"
               />
-              <button onClick={handleSearch} className="search-button">
-                🔍 Rechercher
+              <button onClick={handleSearch} className="search-button" title="Rechercher">
+                🔍
+              </button>
+              <button
+                className={`search-mode-button ${searchByCategory ? "category-mode" : ""}`}
+                onClick={() => setSearchByCategory(!searchByCategory)}
+              >
+                {searchByCategory ? "Par catégorie" : "Par pertinence"}
               </button>
               {activeSearch && (
                 <button onClick={handleClearSearch} className="clear-button">
@@ -539,12 +545,6 @@ function Products() {
                 </button>
               )}
             </div>
-            <span
-              className="search-mode-toggle"
-              onClick={() => setSearchByCategory(!searchByCategory)}
-            >
-              {searchByCategory ? "Chercher par pertinence" : "Chercher par catégorie"}
-            </span>
           </div>
 
           <div className="toolbar-right">
@@ -632,8 +632,10 @@ function Products() {
                       />
                     </div>
 
-                    <div className="product-title">{name}</div>
-                    <FavoriteCount productId={code} isFavorite={isFavorite} />
+                    <div className="card-footer-anchored">
+                      <div className="product-title">{name}</div>
+                      <FavoriteCount productId={code} isFavorite={isFavorite} />
+                    </div>
                   </div>
                 );
               })}

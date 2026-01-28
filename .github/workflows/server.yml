@@ -43,23 +43,18 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-poetry-
 
-      - name: Création de virtualenv et installation des dépendances
-        working-directory: server # <--- CORRECTION ICI
+      - name: Installation des dépendances
+        working-directory: server
         run: |
-          # On vérifie .venv localement car on est dans le dossier server
-          if [ ! -d ".venv" ]; then
-            echo "Cache manqué. Création du venv et installation des dépendances..."
-            poetry config virtualenvs.in-project true
-            poetry install --no-interaction --no-ansi
-          else
-            echo "Cache venv trouvé. Installation complète ignorée."
-          fi
+          poetry config virtualenvs.in-project true
+          # On force l'installation à chaque fois. 
+          # Si le cache est bon, c'est instantané. S'il est cassé, Poetry le répare.
+          poetry install --no-interaction --no-ansi
 
       - name: Exécution des Linters (Black, Isort, Mypy)
         working-directory: server
         run: |
-          # Activation explicite non nécessaire avec 'poetry run', mais conservée pour compatibilité
-          . .venv/bin/activate
+          # On retire '. .venv/bin/activate', poetry run gère ça mieux tout seul
           poetry run black --check .
           poetry run isort --check-only .
           poetry run mypy app || true
@@ -94,21 +89,16 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-poetry-
 
-      - name: Création de virtualenv et installation des dépendances
+      - name: Installation des dépendances
         working-directory: server
         run: |
-          if [ ! -d ".venv" ]; then
-            echo "Cache manqué. Création du venv et installation des dépendances..."
-            poetry config virtualenvs.in-project true
-            poetry install --no-interaction --no-ansi
-          else
-            echo "Cache venv trouvé. Installation complète ignorée."
-          fi
+          poetry config virtualenvs.in-project true
+          poetry install --no-interaction --no-ansi
 
-      - name: Construction des artefacts (si applicable)
+      - name: Construction des artefacts
         working-directory: server
         run: |
-          . .venv/bin/activate
+          # Exemple de build
           echo "Construction du serveur terminée"
 
   #---
@@ -157,24 +147,16 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-poetry-
 
-      - name: Création de virtualenv et installation des dépendances
+      - name: Installation des dépendances
         working-directory: server
         run: |
-          if [ ! -d ".venv" ]; then
-            echo "Cache manqué. Création du venv et installation des dépendances..."
-            poetry config virtualenvs.in-project true
-            poetry install --no-interaction --no-ansi
-          else
-            echo "Cache venv trouvé. Installation complète ignorée."
-          fi
+          poetry config virtualenvs.in-project true
+          poetry install --no-interaction --no-ansi
 
       - name: Exécution des Tests (Pytest)
         working-directory: server
         run: |
-          # Exécute les tests et génère un rapport JUnit
-          . .venv/bin/activate
           export PYTHONPATH="$PWD/.."
-          # pytest sera maintenant trouvé car l'installation précédente a réussi
           poetry run pytest --junitxml=test-report.xml
 
       - name: Téléchargement du Rapport de Test (JUnit)
@@ -218,13 +200,11 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-poetry-
 
-      - name: Création de virtualenv et installation des dépendances
+      - name: Installation des dépendances
         working-directory: server
         run: |
-          if [ ! -d ".venv" ]; then
-            poetry config virtualenvs.in-project true
-            poetry install --no-interaction --no-ansi
-          fi
+          poetry config virtualenvs.in-project true
+          poetry install --no-interaction --no-ansi
 
       - name: Construction et Push de l'image Docker
         env:

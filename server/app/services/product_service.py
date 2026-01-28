@@ -161,11 +161,13 @@ class ProductService:
             # Pagination
             {"$skip": skip},
             {"$limit": page_size},
-            # Supprimer le champ temporaire
-            {"$unset": "relevance_score"},
         ]
 
         products = await db["products"].aggregate(pipeline).to_list(length=page_size)
+
+        # Remove temporary relevance_score field from results
+        for product in products:
+            product.pop("relevance_score", None)
 
         # Enrichir chaque produit avec les valeurs nutritionnelles
         enriched_products = [

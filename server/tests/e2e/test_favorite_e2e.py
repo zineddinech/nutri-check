@@ -2,26 +2,19 @@
 End-to-End Tests for Favorite Endpoints
 
 Tests:
-- add_favorite (POST /favorites/)
-- get_user_favorites (GET /favorites/user/{user_id})
-- remove_favorite (DELETE /favorites/{user_id}/{product_id})
+- add_favorite (POST /api/favorites/)
+- get_user_favorites (GET /api/favorites/user/{user_id})
+- remove_favorite (DELETE /api/favorites/{user_id}/{product_id})
 """
 
 import pytest
-from fastapi.testclient import TestClient
 
-from app.main import app
 from app.schemas.user import UserCreate
 from app.services.user_service import UserService
 
 
-@pytest.fixture
-def client():
-    return TestClient(app)
-
-
 @pytest.mark.asyncio
-async def test_add_favorite_success(client):
+async def test_add_favorite_success(client, seed_favorite_products):
     """Test adding a product to favorites"""
     # Create a test user
     user_data = UserCreate(
@@ -119,7 +112,7 @@ async def test_get_favorites_nonexistent_user(client):
 
 
 @pytest.mark.asyncio
-async def test_remove_favorite_success(client):
+async def test_remove_favorite_success(client, seed_favorite_products):
     """Test removing a favorite"""
     # Create a user and add a favorite first
     user_data = UserCreate(
@@ -162,7 +155,7 @@ async def test_remove_favorite_not_found(client):
 
 
 @pytest.mark.asyncio
-async def test_favorite_workflow(client):
+async def test_favorite_workflow(client, seed_favorite_products):
     """Test complete favorite workflow: add -> get -> remove"""
     # Create a user
     user_data = UserCreate(

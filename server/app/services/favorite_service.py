@@ -1,17 +1,28 @@
 from datetime import datetime, timezone
 
 from bson import ObjectId
+from bson.errors import InvalidId
 from fastapi import HTTPException, status
 
 from ..database.database import get_db
+
+
+def _to_object_id(s: str):
+    try:
+        return ObjectId(s)
+    except (InvalidId, TypeError):
+        return None
 
 
 class FavoriteService:
     @staticmethod
     async def add_favorite(user_id: str, product_id: str):
         db = get_db()
+        oid = _to_object_id(user_id)
+        if oid is None:
+            raise HTTPException(status_code=404, detail="Utilisateur introuvable")
 
-        user = await db["users"].find_one({"_id": ObjectId(user_id)})
+        user = await db["users"].find_one({"_id": oid})
         if not user:
             raise HTTPException(status_code=404, detail="Utilisateur introuvable")
 

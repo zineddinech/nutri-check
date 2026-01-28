@@ -2,9 +2,9 @@
 End-to-End Tests for Product Endpoints
 
 Tests:
-- search_local_products (GET /products/search)
-- get_products_by_index (GET /products/getByIndex)
-- get_product_by_id (GET /products/{product_id})
+- search_local_products (GET /product/search)
+- get_products_by_index (GET /product/getByIndex)
+- get_product_by_id (GET /product/getById/{product_id})
 """
 
 import pytest
@@ -22,7 +22,7 @@ def client():
 async def test_search_products_basic(client):
     """Test basic product search"""
     response = client.get(
-        "/products/search", params={"query": "milk", "page": 1, "page_size": 10}
+        "/product/search", params={"query": "milk", "page": 1, "page_size": 10}
     )
 
     assert response.status_code == 200
@@ -34,7 +34,7 @@ async def test_search_products_basic(client):
 async def test_search_products_with_pagination(client):
     """Test product search with pagination"""
     response = client.get(
-        "/products/search", params={"query": "bread", "page": 2, "page_size": 5}
+        "/product/search", params={"query": "bread", "page": 2, "page_size": 5}
     )
 
     assert response.status_code == 200
@@ -47,7 +47,7 @@ async def test_search_products_with_pagination(client):
 async def test_search_products_invalid_page(client):
     """Test search with invalid page number"""
     response = client.get(
-        "/products/search", params={"query": "cheese", "page": 0, "page_size": 10}
+        "/product/search", params={"query": "cheese", "page": 0, "page_size": 10}
     )
 
     # Should either fail validation or return 200 with empty results
@@ -58,7 +58,7 @@ async def test_search_products_invalid_page(client):
 async def test_search_products_invalid_page_size(client):
     """Test search with invalid page size"""
     response = client.get(
-        "/products/search", params={"query": "butter", "page": 1, "page_size": 2000}
+        "/product/search", params={"query": "butter", "page": 1, "page_size": 2000}
     )
 
     # Should either fail validation or limit the page size
@@ -69,7 +69,7 @@ async def test_search_products_invalid_page_size(client):
 async def test_get_products_by_index(client):
     """Test getting products sorted by index"""
     response = client.get(
-        "/products/getByIndex",
+        "/product/getByIndex",
         params={"sort_by": "nutriscore_score_asc", "page": 1, "page_size": 10},
     )
 
@@ -82,7 +82,7 @@ async def test_get_products_by_index(client):
 async def test_get_products_by_index_desc(client):
     """Test getting products sorted in descending order"""
     response = client.get(
-        "/products/getByIndex",
+        "/product/getByIndex",
         params={"sort_by": "product_name_desc", "page": 1, "page_size": 20},
     )
 
@@ -96,7 +96,7 @@ async def test_search_products_with_auth_header(client):
     """Test product search with authorization header (with user allergies filtering)"""
     # Note: This would require a valid JWT token
     response = client.get(
-        "/products/search",
+        "/product/search",
         params={"query": "nuts", "page": 1, "page_size": 10},
         headers={"Authorization": "Bearer invalid_token"},
     )
@@ -111,7 +111,7 @@ async def test_search_products_with_auth_header(client):
 async def test_get_products_max_page_size(client):
     """Test getting products with maximum allowed page size"""
     response = client.get(
-        "/products/getByIndex",
+        "/product/getByIndex",
         params={"sort_by": "nutriscore_score_asc", "page": 1, "page_size": 1000},
     )
 
@@ -124,7 +124,7 @@ async def test_get_products_max_page_size(client):
 async def test_search_empty_query(client):
     """Test search with empty query string"""
     response = client.get(
-        "/products/search", params={"query": "", "page": 1, "page_size": 10}
+        "/product/search", params={"query": "", "page": 1, "page_size": 10}
     )
 
     # Should either fail validation or return results
@@ -135,7 +135,7 @@ async def test_search_empty_query(client):
 async def test_products_response_structure(client):
     """Test that product responses have correct structure"""
     response = client.get(
-        "/products/search", params={"query": "apple", "page": 1, "page_size": 1}
+        "/product/search", params={"query": "apple", "page": 1, "page_size": 1}
     )
 
     assert response.status_code == 200

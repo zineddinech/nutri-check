@@ -80,6 +80,7 @@ async def shutdown_db_client():
 
 # Inclusion des routes de l'API définies dans api/api.py
 app.include_router(api_router, prefix="/api")
+app.include_router(api_router)
 
 
 @app.get("/")

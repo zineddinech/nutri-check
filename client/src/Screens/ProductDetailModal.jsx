@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from "react";
 import { getProductById } from "../services/productService";
+import ImageCache from "../services/imageCache";
+import { fetchImageFromOFF, fetchImageByProductName } from "../services/imageService";
 import "./../styles/ProductDetailModal.css";
 import { MapContainer, TileLayer, Marker, Popup, GeoJSON } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
-
-const OFF_PRODUCT_BY_CODE = "https://world.openfoodfacts.org/api/v2/product/";
 
 function ProductDetailModal({ productId, onClose }) {
   const [product, setProduct] = useState(null);
@@ -45,72 +45,11 @@ function ProductDetailModal({ productId, onClose }) {
     };
   }, [productId]);
 
-  // 2) Charger l'image OFF *après* que le produit soit là (en parallèle)
+  // 2) Charger l'image OFF *après* que le produit soit là
   useEffect(() => {
     if (!product) return;
 
     let cancelled = false;
-
-    const loadImageByName = async (name) => {
-      try {
-        const response = await fetch(
-          `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(
-            name,
-          )}&search_simple=1&action=process&json=1&page_size=1`,
-        );
-
-        if (!response.ok) throw new Error("Image non disponible");
-
-        const data = await response.json();
-        const img =
-          data?.products?.[0]?.image_front_url ||
-          data?.products?.[0]?.image_url;
-
-        if (!cancelled) {
-          if (img) {
-            setImage(img);
-          } else {
-            setImageError(true);
-          }
-        }
-      } catch {
-        if (!cancelled) setImageError(true);
-      }
-    };
-
-    const loadImageByCode = async (code, productName) => {
-      try {
-        const resp = await fetch(`${OFF_PRODUCT_BY_CODE}${code}.json`);
-        if (!resp.ok) throw new Error("Image non disponible");
-
-        const data = await resp.json();
-        const prod = data.product || {};
-
-        const img =
-          prod.image_front_url ||
-          prod.image_front_small_url ||
-          prod.image_url;
-
-        if (!cancelled) {
-          if (img) {
-            setImage(img);
-          } else if (productName) {
-            loadImageByName(productName);
-          } else {
-            setImageError(true);
-          }
-        }
-      } catch (e) {
-        if (!cancelled) {
-          if (productName) {
-            loadImageByName(productName);
-          } else {
-            setImageError(true);
-          }
-        }
-      }
-    };
-
     const code = product?.code;
     const name = product?.product_name;
 
@@ -118,10 +57,49 @@ function ProductDetailModal({ productId, onClose }) {
     setImageLoaded(false);
     setImageError(false);
 
-    if (code) {
-      loadImageByCode(code, name);
-    } else if (name) {
-      loadImageByName(name);
+    const loadImage = async () => {
+      // 1. Vérifier le cache d'abord
+      if (code) {
+        const cachedImg = ImageCache.getImage(code);
+        if (cachedImg) {
+          if (!cancelled) setImage(cachedImg);
+          return;
+        }
+      }
+
+      // 2. Charger depuis OFF par code
+      if (code) {
+        const img = await fetchImageFromOFF(code);
+        if (!cancelled) {
+          if (img) {
+            ImageCache.setImage(code, img);
+            setImage(img);
+            return;
+          }
+        }
+      }
+
+      // 3. Fallback: chercher par nom
+      if (name) {
+        const img = await fetchImageByProductName(name);
+        if (!cancelled) {
+          if (img) {
+            if (code) ImageCache.setImage(code, img);
+            setImage(img);
+            return;
+          }
+        }
+      }
+
+      // 4. Aucune image trouvée
+      if (!cancelled) {
+        if (code) ImageCache.setNoImage(code);
+        setImageError(true);
+      }
+    };
+
+    if (code || name) {
+      loadImage();
     } else {
       setImageError(true);
     }
@@ -140,6 +118,13 @@ function ProductDetailModal({ productId, onClose }) {
       e: "#FF1744", // Rouge vif
     };
     return colors[grade?.toLowerCase()] || "#78909C";
+  };
+
+  const getNutriscoreLetter = (grade) => {
+    if (grade && ["a", "b", "c", "d", "e"].includes(grade.toLowerCase())) {
+      return grade.toUpperCase();
+    }
+    return "?";
   };
 
   const formatDate = (timestamp) => {
@@ -235,21 +220,19 @@ function ProductDetailModal({ productId, onClose }) {
               <div className="product-info">
                 <h1 className="product-name">{product.product_name || "—"}</h1>
 
-                {(product.nutrition_grade_fr || product.nutriscore_grade) && (
-                  <div className="nutriscore-container">
-                    <span className="nutriscore-label">Nutri-Score</span>
-                    <div
-                      className="nutriscore-badge"
-                      style={{
-                        backgroundColor: getNutriscoreColor(
-                          product.nutrition_grade_fr || product.nutriscore_grade,
-                        ),
-                      }}
-                    >
-                      {(product.nutrition_grade_fr || product.nutriscore_grade).toUpperCase()}
-                    </div>
+                <div className="nutriscore-container">
+                  <span className="nutriscore-label">Nutri-Score</span>
+                  <div
+                    className="nutriscore-badge"
+                    style={{
+                      backgroundColor: getNutriscoreColor(
+                        product.nutrition_grade_fr || product.nutriscore_grade,
+                      ),
+                    }}
+                  >
+                    {getNutriscoreLetter(product.nutrition_grade_fr || product.nutriscore_grade)}
                   </div>
-                )}
+                </div>
 
                 {product.brands && (
                   <div className="info-badge brand-badge">
@@ -304,57 +287,45 @@ function ProductDetailModal({ productId, onClose }) {
             </div>
 
             {/* Section Valeurs Nutritionnelles */}
-            <div className="nutrition-section">
-              <div className="section-header">
-                <h2 className="section-title">
-                  Valeurs nutritionnelles
-                  <span className="subtitle">(pour 100g)</span>
-                </h2>
-              </div>
+            {(() => {
+              const nutritionData = [
+                { icon: "⚡", label: "Énergie", value: product.energy_100g, unit: "kJ", gradient: "linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%)" },
+                { icon: "🧈", label: "Matières grasses", value: product.fat_100g, unit: "g", gradient: "linear-gradient(135deg, #ffd93d 0%, #fcbf49 100%)" },
+                { icon: "🍬", label: "Sucres", value: product.sugars_100g, unit: "g", gradient: "linear-gradient(135deg, #6bcf7f 0%, #4ecdc4 100%)" },
+                { icon: "💪", label: "Protéines", value: product.proteins_100g, unit: "g", gradient: "linear-gradient(135deg, #4d96ff 0%, #6c63ff 100%)" },
+                { icon: "🧂", label: "Sel", value: product.salt_100g, unit: "g", gradient: "linear-gradient(135deg, #a29bfe 0%, #8e82fe 100%)" },
+              ];
+              const availableNutrition = nutritionData.filter(n => n.value !== null && n.value !== undefined);
 
-              <div className="nutrition-grid">
-                <NutritionCard
-                  icon="⚡"
-                  label="Énergie"
-                  value={product.energy_100g}
-                  unit="kJ"
-                  color="#ff6b6b"
-                  gradient="linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%)"
-                />
-                <NutritionCard
-                  icon="🧈"
-                  label="Matières grasses"
-                  value={product.fat_100g}
-                  unit="g"
-                  color="#ffd93d"
-                  gradient="linear-gradient(135deg, #ffd93d 0%, #fcbf49 100%)"
-                />
-                <NutritionCard
-                  icon="🍬"
-                  label="Sucres"
-                  value={product.sugars_100g}
-                  unit="g"
-                  color="#6bcf7f"
-                  gradient="linear-gradient(135deg, #6bcf7f 0%, #4ecdc4 100%)"
-                />
-                <NutritionCard
-                  icon="💪"
-                  label="Protéines"
-                  value={product.proteins_100g}
-                  unit="g"
-                  color="#4d96ff"
-                  gradient="linear-gradient(135deg, #4d96ff 0%, #6c63ff 100%)"
-                />
-                <NutritionCard
-                  icon="🧂"
-                  label="Sel"
-                  value={product.salt_100g}
-                  unit="g"
-                  color="#a29bfe"
-                  gradient="linear-gradient(135deg, #a29bfe 0%, #8e82fe 100%)"
-                />
-              </div>
-            </div>
+              return (
+                <div className="nutrition-section">
+                  <div className="section-header">
+                    <h2 className="section-title">
+                      Valeurs nutritionnelles
+                      <span className="subtitle">(pour 100g)</span>
+                      {availableNutrition.length === 0 && (
+                        <span className="subtitle unavailable"> — Indisponibles</span>
+                      )}
+                    </h2>
+                  </div>
+
+                  {availableNutrition.length > 0 && (
+                    <div className="nutrition-grid">
+                      {availableNutrition.map((n, idx) => (
+                        <NutritionCard
+                          key={idx}
+                          icon={n.icon}
+                          label={n.label}
+                          value={n.value}
+                          unit={n.unit}
+                          gradient={n.gradient}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
           </div>
 
           {/* Section droite: Carte */}
@@ -376,14 +347,8 @@ function NutritionCard({ icon, label, value, unit, gradient }) {
       <div className="nutrition-details">
         <span className="nutrition-label">{label}</span>
         <div className="nutrition-value">
-          {value !== null && value !== undefined ? (
-            <>
-              <span className="value-number">{value}</span>
-              <span className="value-unit">{unit}</span>
-            </>
-          ) : (
-            <span className="not-available">Non disponible</span>
-          )}
+          <span className="value-number">{value}</span>
+          <span className="value-unit">{unit}</span>
         </div>
       </div>
     </div>

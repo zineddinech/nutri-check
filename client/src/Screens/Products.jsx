@@ -6,6 +6,7 @@ import "./../styles/ProductDetailModal.css";
 import {
   getProductsByIndex,
   getProductsSearched,
+  getProductsSearchedByCategory,
 } from "../services/productService";
 import { getConnectedUser } from "../services/authService";
 import {
@@ -15,6 +16,7 @@ import {
   getFavoriteCount,
 } from "../services/favoritesService";
 import ImageCache from "../services/imageCache";
+import { fetchImageFromOFF, fetchImageByProductName } from "../services/imageService";
 import ProductDetailModal from "./ProductDetailModal";
 
 // Fonction pour obtenir la couleur du Nutriscore (couleurs flashy)
@@ -94,8 +96,6 @@ const ImageWithLoader = ({ code, alt, productName }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
 
-  const OFF_PRODUCT_BY_CODE = "https://world.openfoodfacts.org/api/v2/product/";
-
   useEffect(() => {
     let cancelled = false;
     let timeoutId = null;
@@ -111,85 +111,72 @@ const ImageWithLoader = ({ code, alt, productName }) => {
       }
     };
 
-    const loadImageByCode = async (productCode) => {
-      try {
-        const resp = await fetch(`${OFF_PRODUCT_BY_CODE}${productCode}.json`);
-        if (!resp.ok) throw new Error("Image non disponible");
-
-        const data = await resp.json();
-        const prod = data.product || {};
-
-        const img =
-          prod.image_front_url || prod.image_front_small_url || prod.image_url;
-
-        if (img && !cancelled) {
-          setImage(img);
-          ImageCache.setImage(productCode, img);
+    const loadImage = async () => {
+      // 1. Vérifier le cache d'abord
+      if (code) {
+        const cachedImg = ImageCache.getImage(code);
+        if (cachedImg) {
           if (timeoutId) clearTimeout(timeoutId);
-          setIsLoading(false);
-        } else if (!cancelled) {
-          await loadImageByName(productName);
+          if (!cancelled) {
+            setImage(cachedImg);
+            setIsLoading(false);
+          }
+          return;
         }
-      } catch {
-        if (!cancelled) {
-          loadImageByName(productName);
+
+        // Vérifier si marqué comme sans image
+        if (ImageCache.hasNoImage(code)) {
+          if (timeoutId) clearTimeout(timeoutId);
+          if (!cancelled) {
+            setHasError(true);
+            setIsLoading(false);
+          }
+          return;
         }
       }
-    };
 
-    const loadImageByName = async (name) => {
-      try {
-        const response = await fetch(
-          `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(
-            name,
-          )}&search_simple=1&action=process&json=1&page_size=1`,
-        );
-
-        if (!response.ok) throw new Error("Image non disponible");
-
-        const data = await response.json();
-        const img =
-          data?.products?.[0]?.image_front_url ||
-          data?.products?.[0]?.image_url;
-
+      // 2. Charger depuis OFF par code
+      if (code) {
+        const img = await fetchImageFromOFF(code);
         if (!cancelled) {
           if (img) {
+            if (timeoutId) clearTimeout(timeoutId);
+            ImageCache.setImage(code, img);
+            setHasError(false);
             setImage(img);
-            if (code) {
-              ImageCache.setImage(code, img);
-            }
-          } else {
-            setHasError(true);
+            setIsLoading(false);
+            return;
           }
-          if (timeoutId) clearTimeout(timeoutId);
-          setIsLoading(false);
         }
-      } catch {
+      }
+
+      // 3. Fallback: chercher par nom
+      if (productName) {
+        const img = await fetchImageByProductName(productName);
         if (!cancelled) {
-          setHasError(true);
-          if (timeoutId) clearTimeout(timeoutId);
-          setIsLoading(false);
+          if (img) {
+            if (timeoutId) clearTimeout(timeoutId);
+            if (code) ImageCache.setImage(code, img);
+            setHasError(false);
+            setImage(img);
+            setIsLoading(false);
+            return;
+          }
         }
+      }
+
+      // 4. Aucune image trouvée
+      if (!cancelled) {
+        if (code) ImageCache.setNoImage(code);
+        setHasError(true);
+        if (timeoutId) clearTimeout(timeoutId);
+        setIsLoading(false);
       }
     };
 
-    if (code) {
-      const cachedImg = ImageCache.getImage(code);
-      if (cachedImg && cachedImg !== "error") {
-        setImage(cachedImg);
-        setIsLoading(false);
-        return;
-      } else if (cachedImg === "error") {
-        setHasError(true);
-        setIsLoading(false);
-        return;
-      }
-
+    if (code || productName) {
       timeoutId = setTimeout(handleTimeout, 5000);
-      loadImageByCode(code);
-    } else if (productName) {
-      timeoutId = setTimeout(handleTimeout, 5000);
-      loadImageByName(productName);
+      loadImage();
     } else {
       setHasError(true);
       setIsLoading(false);
@@ -237,6 +224,7 @@ function Products() {
   const [page, setPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState("");
   const [activeSearch, setActiveSearch] = useState("");
+  const [searchByCategory, setSearchByCategory] = useState(false);
   const [loading, setLoading] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [favorites, setFavorites] = useState(new Set());
@@ -314,12 +302,10 @@ function Products() {
           preloadedPages.current.delete(targetPage);
         } else {
           if (activeSearch.trim()) {
-            data = await getProductsSearched(
-              activeSearch,
-              targetPage,
-              100,
-              filter,
-            );
+            const searchFn = searchByCategory
+              ? getProductsSearchedByCategory
+              : getProductsSearched;
+            data = await searchFn(activeSearch, targetPage, 100, filter);
           } else {
             data = await getProductsByIndex(sort, targetPage, 100, filter);
           }
@@ -359,9 +345,15 @@ function Products() {
             if (!preloadedPages.current.has(next)) {
               (async () => {
                 try {
-                  const nextData = activeSearch.trim()
-                    ? await getProductsSearched(activeSearch, next, 100, filter)
-                    : await getProductsByIndex(sort, next, 100, filter);
+                  let nextData;
+                  if (activeSearch.trim()) {
+                    const searchFn = searchByCategory
+                      ? getProductsSearchedByCategory
+                      : getProductsSearched;
+                    nextData = await searchFn(activeSearch, next, 100, filter);
+                  } else {
+                    nextData = await getProductsByIndex(sort, next, 100, filter);
+                  }
                   preloadedPages.current.set(next, nextData);
                 } catch {
                   /* silencieux */
@@ -379,7 +371,7 @@ function Products() {
         loadingStateRef.current = false;
       }
     },
-    [activeSearch, sortField, sortOrder, filter],
+    [activeSearch, sortField, sortOrder, filter, searchByCategory],
   );
 
   /** ----------- Scroll infini ----------- */
@@ -413,7 +405,7 @@ function Products() {
     hasMoreRef.current = true;
     preloadedPages.current.clear();
     loadMoreProducts(false, true, 1);
-  }, [sort, activeSearch, filter, loadMoreProducts]);
+  }, [sort, activeSearch, filter, searchByCategory, loadMoreProducts]);
 
   /** ----------- Premier chargement ----------- */
   useEffect(() => {
@@ -529,22 +521,30 @@ function Products() {
           </div>
 
           <div className="search-bar">
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              onKeyPress={handleKeyPress}
-              placeholder="Rechercher un produit..."
-              className="search-input"
-            />
-            <button onClick={handleSearch} className="search-button">
-              🔍 Rechercher
-            </button>
-            {activeSearch && (
-              <button onClick={handleClearSearch} className="clear-button">
-                ✕
+            <div className="search-bar-row">
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                onKeyPress={handleKeyPress}
+                placeholder="Rechercher un produit..."
+                className="search-input"
+              />
+              <button onClick={handleSearch} className="search-button">
+                🔍 Rechercher
               </button>
-            )}
+              {activeSearch && (
+                <button onClick={handleClearSearch} className="clear-button">
+                  ✕
+                </button>
+              )}
+            </div>
+            <span
+              className="search-mode-toggle"
+              onClick={() => setSearchByCategory(!searchByCategory)}
+            >
+              {searchByCategory ? "Chercher par pertinence" : "Chercher par catégorie"}
+            </span>
           </div>
 
           <div className="toolbar-right">

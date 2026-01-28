@@ -5,6 +5,7 @@ import "./../styles/ProductDetail.css";
 import { MapContainer, TileLayer, Marker, Popup, GeoJSON } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import ImageCache from "../services/imageCache";
+import { fetchImageFromOFF, fetchImageByProductName } from "../services/imageService";
 
 const OFF_PRODUCT_BY_CODE = "https://world.openfoodfacts.org/api/v2/product/";
 const FALLBACK_IMG = "./default-image.png"; // Image par défaut locale
@@ -50,118 +51,73 @@ function ProductDetail() {
     };
   }, [id]);
 
-  // 2) Charger l’image OFF *après* que le produit soit là (en parallèle)
+  // 2) Charger l'image OFF *après* que le produit soit là
   useEffect(() => {
     if (!product) return;
 
     let cancelled = false;
     let timeoutId = null;
-
-    const setImageWithTimeout = (img) => {
-      if (!cancelled) {
-        setImage(img);
-      }
-    };
-
-    const handleTimeout = () => {
-      if (!cancelled && !image) {
-        setImageWithTimeout(FALLBACK_IMG);
-        // Mettre en cache l'image par défaut
-        if (product?.code) {
-          ImageCache.setImage(product.code, FALLBACK_IMG);
-        }
-      }
-    };
-    const loadImageByCode = async (code) => {
-      try {
-        const resp = await fetch(`${OFF_PRODUCT_BY_CODE}${code}.json`);
-        if (!resp.ok) throw new Error("Image non disponible");
-
-        const data = await resp.json();
-        const prod = data.product || {};
-
-        const img =
-          prod.image_front_url ||
-          prod.image_front_small_url ||
-          prod.image_url ||
-          FALLBACK_IMG;
-
-        if (!cancelled) {
-          setImageWithTimeout(img);
-          // Sauvegarder en cache
-          ImageCache.setImage(code, img);
-          if (timeoutId) clearTimeout(timeoutId);
-        }
-      } catch (e) {
-        if (!cancelled) {
-          // Erreur lors de la recherche par code, chercher par nom
-          loadImageByName(code, name);
-          if (timeoutId) clearTimeout(timeoutId);
-        }
-      }
-    };
-
-    const loadImageByName = async (prodCode, name) => {
-      try {
-        const response = await fetch(
-          `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(
-            name,
-          )}&search_simple=1&action=process&json=1&page_size=1`,
-        );
-
-        if (!response.ok) throw new Error("Image non disponible");
-
-        const data = await response.json();
-        const img =
-          data?.products?.[0]?.image_front_url ||
-          data?.products?.[0]?.image_url ||
-          FALLBACK_IMG;
-
-        if (!cancelled) {
-          setImageWithTimeout(img);
-          // Sauvegarder en cache avec le code si disponible
-          if (prodCode && img !== FALLBACK_IMG) {
-            ImageCache.setImage(prodCode, img);
-          } else if (prodCode && img === FALLBACK_IMG) {
-            // Aucune image trouvée, mettre en cache l'image par défaut
-            ImageCache.setImage(prodCode, FALLBACK_IMG);
-          }
-          if (timeoutId) clearTimeout(timeoutId);
-        }
-      } catch {
-        if (!cancelled) {
-          setImageWithTimeout(FALLBACK_IMG);
-          // Erreur, mettre en cache l'image par défaut
-          if (prodCode) {
-            ImageCache.setImage(prodCode, FALLBACK_IMG);
-          }
-          if (timeoutId) clearTimeout(timeoutId);
-        }
-      }
-    };
-
     const code = product?.code;
     const name = product?.product_name;
 
-    // on reset l’état image à chaque nouveau produit
     setImage(null);
     setImageLoaded(false);
 
-    if (code) {
-      // Vérifier le cache d'abord
-      const cachedImg = ImageCache.getImage(code);
-      if (cachedImg) {
-        setImageWithTimeout(cachedImg);
-        return;
+    const handleTimeout = () => {
+      if (!cancelled && !image) {
+        setImage(FALLBACK_IMG);
+      }
+    };
+
+    const loadImage = async () => {
+      // 1. Vérifier le cache d'abord
+      if (code) {
+        const cachedImg = ImageCache.getImage(code);
+        if (cachedImg) {
+          if (!cancelled) setImage(cachedImg);
+          return;
+        }
       }
 
+      // 2. Charger depuis OFF par code
+      if (code) {
+        const img = await fetchImageFromOFF(code);
+        if (!cancelled) {
+          if (img) {
+            ImageCache.setImage(code, img);
+            setImage(img);
+            if (timeoutId) clearTimeout(timeoutId);
+            return;
+          }
+        }
+      }
+
+      // 3. Fallback: chercher par nom
+      if (name) {
+        const img = await fetchImageByProductName(name);
+        if (!cancelled) {
+          if (img) {
+            if (code) ImageCache.setImage(code, img);
+            setImage(img);
+            if (timeoutId) clearTimeout(timeoutId);
+            return;
+          }
+        }
+      }
+
+      // 4. Aucune image trouvée - utiliser image par défaut
+      if (!cancelled) {
+        if (code) ImageCache.setNoImage(code);
+        setImage(FALLBACK_IMG);
+        if (timeoutId) clearTimeout(timeoutId);
+      }
+    };
+
+    if (code || name) {
       timeoutId = setTimeout(handleTimeout, 5000);
-      loadImageByCode(code);
-    } else if (name) {
-      timeoutId = setTimeout(handleTimeout, 5000);
-      loadImageByName(code, name);
+      loadImage();
     } else {
-      setImageWithTimeout(FALLBACK_IMG);
+      setImage(FALLBACK_IMG);
     }
 
     return () => {
@@ -219,7 +175,7 @@ function ProductDetail() {
   }
 
   return (
-    <div className="product-detail-container" style={{ overflowY: "scroll" }}>
+    <div className="product-detail-container">
       <button className="back-button-top" onClick={() => navigate(-1)}>
         <span className="button-icon">←</span>
         Retour aux produits

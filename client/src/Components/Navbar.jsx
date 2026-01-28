@@ -2,20 +2,13 @@ import { NavLink, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import "./../styles/Navbar.css";
 import { getConnectedUser } from "../services/authService";
-
-function getStoredUser() {
-  try {
-    const raw = localStorage.getItem("user");
-    return raw ? JSON.parse(raw) : null;
-  } catch {
-    return null;
-  }
-}
+import ProfileModal from "../Screens/ProfileModal";
 
 function Navbar() {
   const navigate = useNavigate();
   const [isConnected, setIsConnected] = useState(false);
   const [user, setUser] = useState(null);
+  const [showProfileModal, setShowProfileModal] = useState(false);
 
   useEffect(() => {
     const checkConnection = async () => {
@@ -81,14 +74,12 @@ function Navbar() {
       <div className="nav-right">
         {isConnected ? (
           <>
-            <NavLink
-              to="/profil"
-              className={({ isActive }) =>
-                "nav-link profil-link" + (isActive ? " active" : "")
-              }
+            <button
+              onClick={() => setShowProfileModal(true)}
+              className="nav-link profil-link"
             >
               👤 {user?.username || "Profil"}
-            </NavLink>
+            </button>
             <button onClick={handleLogout} className="btn btn-logout">
               Déconnexion
             </button>
@@ -104,6 +95,10 @@ function Navbar() {
           </>
         )}
       </div>
+
+      {showProfileModal && (
+        <ProfileModal onClose={() => setShowProfileModal(false)} />
+      )}
     </nav>
   );
 }

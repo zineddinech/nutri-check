@@ -570,7 +570,16 @@ function Products() {
         </div>
 
         <div className="products-main">
-          {displayedProducts.length === 0 && !loading ? (
+          {loading && products.length === 0 ? (
+            <div className="search-loading-state">
+              <div className="spinner"></div>
+              <p className="search-loading-text">
+                {activeSearch
+                  ? `Recherche de "${activeSearch}" en cours...`
+                  : "Chargement des produits..."}
+              </p>
+            </div>
+          ) : displayedProducts.length === 0 ? (
             <div className="empty-state">
               <div className="empty-state__text">
                 {activeSearch

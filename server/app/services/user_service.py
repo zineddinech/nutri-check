@@ -131,9 +131,7 @@ class UserService:
         if oid is None:
             return None
         db = get_db()
-        update_data = {
-            k: v for k, v in user_data.model_dump().items() if v is not None
-        }
+        update_data = {k: v for k, v in user_data.model_dump().items() if v is not None}
         update_data["updated_at"] = datetime.now(timezone.utc).isoformat()
 
         await db["users"].update_one({"_id": oid}, {"$set": update_data})

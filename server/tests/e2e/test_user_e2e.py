@@ -62,8 +62,7 @@ async def test_register_user_weak_password(client):
     detail = data.get("detail", "")
     if isinstance(detail, list):
         msgs = " ".join(
-            e.get("msg", "") or str(e.get("ctx", ""))
-            for e in detail
+            e.get("msg", "") or str(e.get("ctx", "")) for e in detail
         ).lower()
         assert "password" in msgs or "caractères" in msgs or "8" in msgs
     else:
@@ -203,9 +202,7 @@ async def test_add_allergies_success(client):
     user_id = created_user.id
 
     # Add allergies (API expects raw array)
-    response = client.post(
-        f"/users/{user_id}/allergies", json=["peanuts", "shellfish"]
-    )
+    response = client.post(f"/users/{user_id}/allergies", json=["peanuts", "shellfish"])
 
     assert response.status_code == 200
     data = response.json()
@@ -230,9 +227,7 @@ async def test_remove_allergies_success(client):
     await UserService.add_allergies(user_id, ["peanuts", "milk"])
 
     # Remove allergies (API expects raw array; use request for DELETE + json)
-    response = client.request(
-        "DELETE", f"/users/{user_id}/allergies", json=["peanuts"]
-    )
+    response = client.request("DELETE", f"/users/{user_id}/allergies", json=["peanuts"])
 
     assert response.status_code == 200
 
@@ -252,9 +247,7 @@ async def test_add_countries_success(client):
     user_id = created_user.id
 
     # Add countries (API expects raw array)
-    response = client.post(
-        f"/users/{user_id}/countries", json=["France", "Spain"]
-    )
+    response = client.post(f"/users/{user_id}/countries", json=["France", "Spain"])
 
     assert response.status_code == 200 or response.status_code == 201
 
@@ -277,8 +270,6 @@ async def test_remove_countries_success(client):
     await UserService.add_countries(user_id, ["France", "Germany"])
 
     # Remove countries (API expects raw array; use request for DELETE + json)
-    response = client.request(
-        "DELETE", f"/users/{user_id}/countries", json=["France"]
-    )
+    response = client.request("DELETE", f"/users/{user_id}/countries", json=["France"])
 
     assert response.status_code == 200 or response.status_code == 204

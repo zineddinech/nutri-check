@@ -192,9 +192,27 @@ def sample_allergens():
 
 
 FAVORITE_E2E_PRODUCTS = [
-    {"_id": "test_product_id", "product_name": "Test Product", "brands": "Test", "nutriscore_score": 0, "ecoscore_score": 50},
-    {"_id": "test_product_123", "product_name": "Test Product 123", "brands": "Test", "nutriscore_score": 0, "ecoscore_score": 50},
-    {"_id": "workflow_product", "product_name": "Workflow Product", "brands": "Test", "nutriscore_score": 0, "ecoscore_score": 50},
+    {
+        "_id": "test_product_id",
+        "product_name": "Test Product",
+        "brands": "Test",
+        "nutriscore_score": 0,
+        "ecoscore_score": 50,
+    },
+    {
+        "_id": "test_product_123",
+        "product_name": "Test Product 123",
+        "brands": "Test",
+        "nutriscore_score": 0,
+        "ecoscore_score": 50,
+    },
+    {
+        "_id": "workflow_product",
+        "product_name": "Workflow Product",
+        "brands": "Test",
+        "nutriscore_score": 0,
+        "ecoscore_score": 50,
+    },
 ]
 
 

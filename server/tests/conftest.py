@@ -87,9 +87,18 @@ def override_db(monkeypatch, mock_db):
     """
     Force tous les services à utiliser la base mockée pendant les tests.
     """
-    from app.services import user_service
+    from app.services import (
+        favorite_service,
+        product_service,
+        shopping_trip_service,
+        user_service,
+    )
 
+    # Tous les services doivent pointer vers la même base Mongo simulée.
     monkeypatch.setattr(user_service, "get_db", lambda: mock_db)
+    monkeypatch.setattr(favorite_service, "get_db", lambda: mock_db)
+    monkeypatch.setattr(product_service, "get_db", lambda: mock_db)
+    monkeypatch.setattr(shopping_trip_service, "get_db", lambda: mock_db)
 
 
 # ============================================================
@@ -116,12 +125,25 @@ def real_db():
 # ============================================================
 
 
+class JSONFriendlyTestClient(TestClient):
+    """
+    Extension de TestClient pour accepter l'argument `json` sur delete().
+
+    Certaines versions de httpx / TestClient ne permettent pas de passer
+    json= directement à delete(), alors que nos tests e2e le font.
+    Cette classe harmonise le comportement en déléguant à request().
+    """
+
+    def delete(self, url, **kwargs):
+        return super().request("DELETE", url, **kwargs)
+
+
 @pytest.fixture(scope="module")
 def client():
     """
     Crée un client HTTP de test pour l’API FastAPI.
     """
-    test_client = TestClient(app)
+    test_client = JSONFriendlyTestClient(app)
     yield test_client
 
 

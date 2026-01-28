@@ -87,7 +87,7 @@ function Navbar() {
                 "nav-link profil-link" + (isActive ? " active" : "")
               }
             >
-              👤 {user?.first_name || "Profil"}
+              👤 {user?.username || "Profil"}
             </NavLink>
             <button onClick={handleLogout} className="btn btn-logout">
               Déconnexion

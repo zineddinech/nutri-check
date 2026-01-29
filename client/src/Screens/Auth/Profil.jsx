@@ -9,6 +9,11 @@ import {
   addCountry,
   removeCountry,
 } from "../../services/authService";
+import translations from "../../translations/translations.json";
+
+const CURRENT_LOCALE = "fr";
+const translateAllergy = (englishName) =>
+  translations[CURRENT_LOCALE]?.[englishName] || englishName;
 
 function Profil() {
   const navigate = useNavigate();
@@ -275,7 +280,7 @@ function Profil() {
                         className="dropdown-item-btn"
                         onClick={() => handleAddAllergyFromList(s)}
                       >
-                        {s}
+                        {translateAllergy(s)}
                       </button>
                     ))}
                   {!loadingAllergySuggestions &&
@@ -289,7 +294,7 @@ function Profil() {
             <div className="tags-list">
               {user.allergies?.map((a) => (
                 <div key={a} className="tag">
-                  ⚠️ {a}
+                  ⚠️ {translateAllergy(a)}
                   <button
                     className="tag-remove-btn"
                     onClick={() => handleRemoveAllergy(a)}

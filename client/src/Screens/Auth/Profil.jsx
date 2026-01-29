@@ -280,7 +280,7 @@ function Profil() {
                         className="dropdown-item-btn"
                         onClick={() => handleAddAllergyFromList(s)}
                       >
-                        {s}
+                        {translateAllergy(s)}
                       </button>
                     ))}
                   {!loadingAllergySuggestions &&

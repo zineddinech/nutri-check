@@ -8,6 +8,11 @@ import {
   addCountry,
   removeCountry,
 } from "../services/authService";
+import translations from "../translations/translations.json";
+
+const CURRENT_LOCALE = "fr";
+const translateAllergy = (englishName) =>
+  translations[CURRENT_LOCALE]?.[englishName] || englishName;
 
 function ProfileModal({ onClose }) {
   const [user, setUser] = useState(null);
@@ -282,7 +287,7 @@ function ProfileModal({ onClose }) {
                         className="dropdown-item-btn"
                         onClick={() => handleAddAllergyFromList(s)}
                       >
-                        {s}
+                        {translateAllergy(s)}
                       </button>
                     ))}
                   {!loadingAllergySuggestions &&
@@ -297,7 +302,7 @@ function ProfileModal({ onClose }) {
               {user.allergies?.length > 0 ? (
                 user.allergies.map((a) => (
                   <div key={a} className="tag">
-                    ⚠️ {a}
+                    ⚠️ {translateAllergy(a)}
                     <button
                       className="tag-remove-btn"
                       onClick={() => handleRemoveAllergy(a)}

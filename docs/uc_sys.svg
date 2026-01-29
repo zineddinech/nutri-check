@@ -1,1 +1,67 @@
-<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" contentStyleType="text/css" data-diagram-type="DESCRIPTION" height="493px" preserveAspectRatio="none" style="width:586px;height:493px;background:#FFFFFF;" version="1.1" viewBox="0 0 586 493" width="586px" zoomAndPan="magnify"><defs/><g><!--cluster Nutri-Check System--><g class="cluster" data-entity="Nutri-Check System" data-source-line="8" data-uid="ent0005" id="cluster_Nutri-Check System"><rect fill="none" height="480" rx="2.5" ry="2.5" style="stroke:#181818;stroke-width:1;" width="260" x="320" y="7"/><text fill="#000000" font-family="sans-serif" font-size="14" font-weight="bold" lengthAdjust="spacing" textLength="156.4268" x="371.7866" y="21.9951">Nutri-Check System</text></g><!--entity UC01--><g class="entity" data-entity="UC01" data-source-line="9" data-uid="ent0006" id="entity_UC01"><ellipse cx="450.0136" cy="67.2027" fill="#F1F1F1" rx="114.0136" ry="25.2027" style="stroke:#181818;stroke-width:0.5;"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="206.5342" x="346.7465" y="71.8512">UC-01: Register New Account</text></g><!--entity UC02--><g class="entity" data-entity="UC02" data-source-line="10" data-uid="ent0007" id="entity_UC02"><ellipse cx="450.1589" cy="291.0318" fill="#F1F1F1" rx="100.6589" ry="22.5318" style="stroke:#181818;stroke-width:0.5;"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="177.5088" x="361.4045" y="295.6802">UC-02: Manage Allergens</text></g><!--entity UC03--><g class="entity" data-entity="UC03" data-source-line="11" data-uid="ent0008" id="entity_UC03"><ellipse cx="450.1633" cy="147.8327" fill="#F1F1F1" rx="92.1633" ry="20.8327" style="stroke:#181818;stroke-width:0.5;"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="158.6211" x="370.8527" y="152.4811">UC-03: Search Product</text></g><!--entity UC04--><g class="entity" data-entity="UC04" data-source-line="12" data-uid="ent0009" id="entity_UC04"><ellipse cx="449.7646" cy="370.9529" fill="#F1F1F1" rx="100.2646" ry="22.4529" style="stroke:#181818;stroke-width:0.5;"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="176.6406" x="361.4443" y="375.6014">UC-04: Manage Favorites</text></g><!--entity UC05--><g class="entity" data-entity="UC05" data-source-line="13" data-uid="ent0010" id="entity_UC05"><ellipse cx="449.8975" cy="450.1795" fill="#F1F1F1" rx="93.8975" ry="21.1795" style="stroke:#181818;stroke-width:0.5;"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="162.5107" x="368.6422" y="454.8279">UC-05: Reset Password</text></g><!--entity Login--><g class="entity" data-entity="Login" data-source-line="14" data-uid="ent0011" id="entity_Login"><ellipse cx="449.8804" cy="219.0236" fill="#F1F1F1" rx="29.8804" ry="14.5236" style="stroke:#181818;stroke-width:0.5;"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="38.0146" x="430.8731" y="223.6721">Login</text></g><!--entity Visiteur--><g class="entity" data-entity="Visiteur" data-source-line="3" data-uid="ent0002" id="entity_Visiteur"><ellipse cx="252.5591" cy="146.5" fill="#F1F1F1" rx="8" ry="8" style="stroke:#181818;stroke-width:0.5;"/><path d="M252.5591,154.5 L252.5591,181.5 M239.5591,162.5 L265.5591,162.5 M252.5591,181.5 L239.5591,196.5 M252.5591,181.5 L265.5591,196.5" fill="none" style="stroke:#181818;stroke-width:0.5;"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="41.1182" x="232" y="210.9951">Guest</text></g><!--entity User--><g class="entity" data-entity="User" data-source-line="4" data-uid="ent0003" id="entity_User"><ellipse cx="62.0649" cy="299.5" fill="#F1F1F1" rx="8" ry="8" style="stroke:#181818;stroke-width:0.5;"/><path d="M62.0649,307.5 L62.0649,334.5 M49.0649,315.5 L75.0649,315.5 M62.0649,334.5 L49.0649,349.5 M62.0649,334.5 L75.0649,349.5" fill="none" style="stroke:#181818;stroke-width:0.5;"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="112.1299" x="6" y="363.9951">Registered User</text></g><!--link User to Visiteur--><g class="link" data-entity-1="User" data-entity-2="Visiteur" data-source-line="6" data-uid="lnk4" id="link_User_Visiteur"><path d="M110.08,290.79 C149.34,258.92 189.3229,226.462 217.9129,203.262" fill="none" id="User-to-Visiteur" style="stroke:#181818;stroke-width:1;"/><polygon fill="none" points="231.89,191.92,214.1323,198.603,221.6936,207.921,231.89,191.92" style="stroke:#181818;stroke-width:1;"/><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="52.0508" x="149" y="214.0669">extends</text></g><!--link Visiteur to UC01--><g class="link" data-entity-1="Visiteur" data-entity-2="UC01" data-source-line="17" data-uid="lnk12" id="link_Visiteur_UC01"><path d="M273.1,146.89 C283.32,133.67 296.84,118.83 312,109 C328.49,98.31 347.85,90.22 366.74,84.14" fill="none" id="Visiteur-UC01" style="stroke:#181818;stroke-width:1;"/></g><!--link Visiteur to UC03--><g class="link" data-entity-1="Visiteur" data-entity-2="UC03" data-source-line="18" data-uid="lnk13" id="link_Visiteur_UC03"><path d="M273.32,173.16 C296.43,169.85 336.01,164.18 371.76,159.06" fill="none" id="Visiteur-UC03" style="stroke:#181818;stroke-width:1;"/></g><!--link Visiteur to Login--><g class="link" data-entity-1="Visiteur" data-entity-2="Login" data-source-line="19" data-uid="lnk14" id="link_Visiteur_Login"><path d="M273.32,180.36 C308.66,188.13 382.54,204.38 422.31,213.13" fill="none" id="Visiteur-Login" style="stroke:#181818;stroke-width:1;"/></g><!--link User to UC02--><g class="link" data-entity-1="User" data-entity-2="UC02" data-source-line="21" data-uid="lnk15" id="link_User_UC02"><path d="M118.3,323.56 C180.74,317.41 283.29,307.31 357.66,299.99" fill="none" id="User-UC02" style="stroke:#181818;stroke-width:1;"/></g><!--link User to UC04--><g class="link" data-entity-1="User" data-entity-2="UC04" data-source-line="22" data-uid="lnk16" id="link_User_UC04"><path d="M118.3,335.02 C181.16,341.86 284.66,353.12 359.14,361.22" fill="none" id="User-UC04" style="stroke:#181818;stroke-width:1;"/></g><!--link User to UC05--><g class="link" data-entity-1="User" data-entity-2="UC05" data-source-line="23" data-uid="lnk17" id="link_User_UC05"><path d="M118.18,347.89 C168.5,364.94 244.99,390.44 312,411 C337.41,418.8 365.64,426.92 389.84,433.73" fill="none" id="User-UC05" style="stroke:#181818;stroke-width:1;"/></g><!--SRC=[PP1BIyGm4CVl-HH3J_OGsEtZqeEm5FIYo-9Ixo4Tqs1DO2Pn5VMxsrOQM9j3cCTl_lCOyIL0y43M305wIwY3zKu8fOCdoEuZSiX0CJnRjW4ZhPadD9O34lRGCTB2p8OGymzIVj-c6cW0FmAwdeMOEoXdHeJi60DPsGweN-7yEOczPV0bO7gHKIkUaAwLktq3QpCuuWKEMlle_gRgsjr-Mr4qyAYSCWY7SKGow7YbYorTDd16HNg04_a-wgHSRjagAT-fTq_JTacvsjBrF3bZW9DYldZgLxQ-PX-yiMx9BPRu4IATJagucRVCDw7oNsYfpTFz5wR8hzpgsgtpNm00]--></g></svg>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" contentStyleType="text/css" data-diagram-type="DESCRIPTION" height="680px" preserveAspectRatio="none" style="width:586px;height:680px;background:#FFFFFF;" version="1.1" viewBox="0 0 586 680" width="586px" zoomAndPan="magnify">
+    <defs/>
+    <g>
+        <g class="cluster" id="cluster_Nutri-Check System">
+            <rect fill="none" height="660" rx="2.5" ry="2.5" style="stroke:#181818;stroke-width:1;" width="260" x="320" y="7"/>
+            <text fill="#000000" font-family="sans-serif" font-size="14" font-weight="bold" lengthAdjust="spacing" textLength="156.4268" x="371.7866" y="21.9951">Nutri-Check System</text>
+        </g>
+
+        <g id="entity_UC01">
+            <ellipse cx="450.0136" cy="67.2027" fill="#F1F1F1" rx="114.0136" ry="25.2027" style="stroke:#181818;stroke-width:0.5;"/>
+            <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="206.5342" x="346.7465" y="71.8512">UC-01: Register New Account</text>
+        </g>
+        <g id="entity_UC03">
+            <ellipse cx="450.1633" cy="147.8327" fill="#F1F1F1" rx="92.1633" ry="20.8327" style="stroke:#181818;stroke-width:0.5;"/>
+            <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="158.6211" x="370.8527" y="152.4811">UC-03: Search Product</text>
+        </g>
+        <g id="entity_Login">
+            <ellipse cx="449.8804" cy="219.0236" fill="#F1F1F1" rx="29.8804" ry="14.5236" style="stroke:#181818;stroke-width:0.5;"/>
+            <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="38.0146" x="430.8731" y="223.6721">Login</text>
+        </g>
+        <g id="entity_UC02">
+            <ellipse cx="450.1589" cy="291.0318" fill="#F1F1F1" rx="100.6589" ry="22.5318" style="stroke:#181818;stroke-width:0.5;"/>
+            <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="177.5088" x="361.4045" y="295.6802">UC-02: Manage Allergens</text>
+        </g>
+        <g id="entity_UC04">
+            <ellipse cx="449.7646" cy="370.9529" fill="#F1F1F1" rx="100.2646" ry="22.4529" style="stroke:#181818;stroke-width:0.5;"/>
+            <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="176.6406" x="361.4443" y="375.6014">UC-04: Manage Favorites</text>
+        </g>
+        <g id="entity_UC05">
+            <ellipse cx="449.8975" cy="450.1795" fill="#F1F1F1" rx="93.8975" ry="21.1795" style="stroke:#181818;stroke-width:0.5;"/>
+            <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="162.5107" x="368.6422" y="454.8279">UC-05: Reset Password</text>
+        </g>
+
+        <g id="entity_UC06">
+            <ellipse cx="450" cy="530" fill="#F1F1F1" rx="105" ry="22" style="stroke:#181818;stroke-width:0.5;"/>
+            <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="180" x="360" y="534.5">UC-06: Generate AI Recipe</text>
+        </g>
+        <g id="entity_UC07">
+            <ellipse cx="450" cy="610" fill="#F1F1F1" rx="105" ry="22" style="stroke:#181818;stroke-width:0.5;"/>
+            <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="180" x="360" y="614.5">UC-07: Locate Nearby Stores</text>
+        </g>
+
+        <g id="entity_Visiteur">
+            <ellipse cx="252.5591" cy="146.5" fill="#F1F1F1" rx="8" ry="8" style="stroke:#181818;stroke-width:0.5;"/>
+            <path d="M252.5591,154.5 L252.5591,181.5 M239.5591,162.5 L265.5591,162.5 M252.5591,181.5 L239.5591,196.5 M252.5591,181.5 L265.5591,196.5" fill="none" style="stroke:#181818;stroke-width:0.5;"/>
+            <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="41.1182" x="232" y="210.9951">Guest</text>
+        </g>
+        <g id="entity_User">
+            <ellipse cx="62.0649" cy="299.5" fill="#F1F1F1" rx="8" ry="8" style="stroke:#181818;stroke-width:0.5;"/>
+            <path d="M62.0649,307.5 L62.0649,334.5 M49.0649,315.5 L75.0649,315.5 M62.0649,334.5 L49.0649,349.5 M62.0649,334.5 L75.0649,349.5" fill="none" style="stroke:#181818;stroke-width:0.5;"/>
+            <text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="112.1299" x="6" y="363.9951">Registered User</text>
+        </g>
+
+        <g id="link_User_Visiteur">
+            <path d="M110.08,290.79 C149.34,258.92 189.3229,226.462 217.9129,203.262" fill="none" style="stroke:#181818;stroke-width:1;"/>
+            <polygon fill="none" points="231.89,191.92,214.1323,198.603,221.6936,207.921,231.89,191.92" style="stroke:#181818;stroke-width:1;"/>
+            <text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="52.0508" x="149" y="214.0669">extends</text>
+        </g>
+
+        <path d="M273.1,146.89 C283.32,133.67 296.84,118.83 312,109 C328.49,98.31 347.85,90.22 366.74,84.14" fill="none" style="stroke:#181818;stroke-width:1;"/>
+        <path d="M273.32,173.16 C296.43,169.85 336.01,164.18 371.76,159.06" fill="none" style="stroke:#181818;stroke-width:1;"/>
+        <path d="M273.32,180.36 C308.66,188.13 382.54,204.38 422.31,213.13" fill="none" style="stroke:#181818;stroke-width:1;"/>
+        <path d="M260,215 C280,350 310,540 355,595" fill="none" style="stroke:#181818;stroke-width:1;"/> <path d="M118.3,323.56 C180.74,317.41 283.29,307.31 357.66,299.99" fill="none" style="stroke:#181818;stroke-width:1;"/>
+        <path d="M118.3,335.02 C181.16,341.86 284.66,353.12 359.14,361.22" fill="none" style="stroke:#181818;stroke-width:1;"/>
+        <path d="M118.18,347.89 C168.5,364.94 244.99,390.44 312,411 C337.41,418.8 365.64,426.92 389.84,433.73" fill="none" style="stroke:#181818;stroke-width:1;"/>
+        <path d="M115,355 C160,400 280,480 355,515" fill="none" style="stroke:#181818;stroke-width:1;"/> </g>
+</svg>

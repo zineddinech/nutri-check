@@ -42,3 +42,28 @@ export function removeAllergy(userId, allergies) {
     body: JSON.stringify(allergies), // Ex: ["gluten"]
   });
 }
+
+export function addCountry(userId, countries) {
+  const url = `${API_BASE}/api/users/${userId}/countries`;
+
+  return fetchJson(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${localStorage.getItem("jwtToken") || ""}`,
+    },
+    body: JSON.stringify(countries),
+  });
+}
+export function removeCountry(userId, countries) {
+  const url = `${API_BASE}/api/users/${userId}/countries`;
+
+  return fetchJson(url, {
+    method: "DELETE",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${localStorage.getItem("jwtToken") || ""}`,
+    },
+    body: JSON.stringify(countries),
+  });
+}

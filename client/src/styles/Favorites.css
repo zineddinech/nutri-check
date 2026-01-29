@@ -92,7 +92,7 @@
 .favorite-card {
   background: #fff;
   border-radius: 18px;
-  padding: 60px 12px 12px 12px;
+  padding: 50px 12px 12px 12px;
   text-align: center;
   box-shadow: 0 4px 16px rgba(255, 107, 157, 0.15);
   min-width: 200px;
@@ -103,10 +103,8 @@
   align-items: center;
   transition: all 0.3s ease;
   cursor: pointer;
-  border: 20px solid rgba(255, 255, 255, 0.2);
+  border: 2px solid transparent;
   position: relative;
-  background: #fff;
-  border-radius: 18px;
 }
 
 .favorite-card:hover {
@@ -114,21 +112,20 @@
   box-shadow: 0 12px 32px rgba(255, 107, 157, 0.3);
 }
 
-.favorite-card-floating-header {
+.card-floating-header {
   position: absolute;
   top: 10px;
-  left: 0;
-  width: 100%;
+  left: 10px;
+  right: 10px;
   height: 40px;
   z-index: 20;
-  pointer-events: none; /* Permet de cliquer à travers les zones vides */
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 .floating-score {
-  position: absolute;
-  left: 10px;
-  top: 0;
-  background: #2ecc40; /* Vert par défaut, peut changer selon le score */
+  background: #2ecc40; /* Vert par défaut, sera overridé par style inline */
   color: white;
   width: 36px;
   height: 36px;
@@ -137,8 +134,8 @@
   align-items: center;
   justify-content: center;
   font-weight: 700;
-  font-size: 14px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  font-size: 16px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
   text-transform: uppercase;
 }
 
@@ -172,16 +169,12 @@
 }
 
 .floating-remove {
-  position: absolute;
-  right: 10px;
-  top: 0;
-  pointer-events: auto; /* Réactive le clic pour le bouton */
-  background: #2c3e50; /* Noir/Gris foncé comme sur ton image */
+  background: #2c3e50;
   color: white;
   border: none;
   width: 36px;
   height: 36px;
-  border-radius: 8px; /* Carré arrondi */
+  border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -210,14 +203,10 @@
 }
 
 .floating-heart {
-  position: absolute;
-  left: 50%;
-  top: 0;
-  transform: translateX(-50%); /* Astuce pour centrer parfaitement */
   background: #ff6b9d;
   color: white;
   width: 40px;
-  height: 36px; /* Un peu rectangulaire arrondi comme sur ton image */
+  height: 36px;
   border-radius: 12px;
   display: flex;
   align-items: center;
@@ -305,10 +294,49 @@
 }
 
 .favorite-date {
-  margin-top: 8px;
-  font-size: 0.85rem;
+  margin: 0;
+  font-size: 0.8rem;
   color: #999;
   font-style: italic;
+}
+
+/* ==================== FOOTER ANCRÉ EN BAS ==================== */
+.card-footer-anchored {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding-top: 8px;
+}
+
+/* ==================== CONTENU CARTE ==================== */
+.card-content {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+/* ==================== COMPTEUR DE FAVORIS ==================== */
+.favorite-count-display {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  margin-top: 0;
+  padding-top: 0;
+  color: #888;
+  font-size: 0.9rem;
+}
+
+.favorite-count-heart {
+  color: #ff6b9d;
+  font-size: 1rem;
+}
+
+.favorite-count-number {
+  font-weight: 600;
+  color: #666;
 }
 
 /* ==================== SKELETON LOADING ==================== */

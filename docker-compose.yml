@@ -30,11 +30,14 @@ services:
       # Cela permet le "hot-reloading" : les changements dans le code sont immédiatement pris en compte sans redémarrer le conteneur.
       - ./server:/app
       - ./server/compressed_images:/app/compressed_images
+    env_file:
+      - ./server/.env
     environment:
       # L'URI de connexion pour que l'API puisse trouver la base de données.
       # 'mongo' est le nom du service de base de données défini ci-dessus.
       - MONGO_URI=mongodb://mongo:27017
       - MONGO_DB_NAME=nutridb
+
     # S'assure que le service 'mongo' est démarré et prêt avant de démarrer le service 'server'.
     depends_on:
       - mongo
@@ -57,6 +60,15 @@ services:
     # S'assure que le backend est démarré avant le frontend.
     depends_on:
       - server
+    networks:
+      - nutri-network
+  k6:
+    image: grafana/k6:latest
+    container_name: nutri_k6
+    depends_on:
+      - server
+    volumes:
+      - ./server/tests/performance:/scripts
     networks:
       - nutri-network
 

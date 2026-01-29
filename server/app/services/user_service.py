@@ -5,16 +5,24 @@ from typing import List, Optional
 
 import jwt
 from bson import ObjectId
+from bson.errors import InvalidId
 from passlib.context import CryptContext
 
 from utils.email import send_reset_email
 
-from ..core.config import (ACCESS_TOKEN_EXPIRE_MINUTES, JWT_ALGORITHM,
-                           JWT_SECRET_KEY)
+from ..core.config import ACCESS_TOKEN_EXPIRE_MINUTES, JWT_ALGORITHM, JWT_SECRET_KEY
 from ..database.database import get_db
 from ..schemas.user import UserCreate, UserResponse, UserUpdate
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+
+def _to_object_id(s: str):
+    """Return ObjectId(s) or None if invalid."""
+    try:
+        return ObjectId(s)
+    except (InvalidId, TypeError):
+        return None
 
 
 class UserService:
@@ -78,8 +86,11 @@ class UserService:
 
     @staticmethod
     async def get_user_by_id(user_id: str) -> Optional[UserResponse]:
+        oid = _to_object_id(user_id)
+        if oid is None:
+            return None
         db = get_db()
-        user = await db["users"].find_one({"_id": ObjectId(user_id)})
+        user = await db["users"].find_one({"_id": oid})
         if user:
             user["_id"] = str(user["_id"])
             return UserResponse(**user)
@@ -116,13 +127,16 @@ class UserService:
     async def update_user(
         user_id: str, user_data: UserUpdate
     ) -> Optional[UserResponse]:
+        oid = _to_object_id(user_id)
+        if oid is None:
+            return None
         db = get_db()
-        update_data = {k: v for k, v in user_data.dict().items() if v is not None}
+        update_data = {k: v for k, v in user_data.model_dump().items() if v is not None}
         update_data["updated_at"] = datetime.now(timezone.utc).isoformat()
 
-        await db["users"].update_one({"_id": ObjectId(user_id)}, {"$set": update_data})
+        await db["users"].update_one({"_id": oid}, {"$set": update_data})
 
-        updated_user = await db["users"].find_one({"_id": ObjectId(user_id)})
+        updated_user = await db["users"].find_one({"_id": oid})
         if updated_user:
             updated_user["_id"] = str(updated_user["_id"])
             return UserResponse(**updated_user)
@@ -130,14 +144,19 @@ class UserService:
 
     @staticmethod
     async def delete_user(user_id: str) -> bool:
+        oid = _to_object_id(user_id)
+        if oid is None:
+            return False
         db = get_db()
-        result = await db["users"].delete_one({"_id": ObjectId(user_id)})
+        result = await db["users"].delete_one({"_id": oid})
         return result.deleted_count == 1
 
     @staticmethod
-    async def authenticate_user(email: str, password: str) -> str | None:
+    async def authenticate_user(username_or_email: str, password: str) -> str | None:
         db = get_db()
-        user = await db["users"].find_one({"email": email})
+        user = await db["users"].find_one({"email": username_or_email})
+        if not user:
+            user = await db["users"].find_one({"username": username_or_email})
         if not user or not UserService.verify_password(
             password, user["hashed_password"]
         ):
@@ -149,8 +168,11 @@ class UserService:
 
     @staticmethod
     async def add_allergies(user_id: str, allergies: list[str]):
+        oid = _to_object_id(user_id)
+        if oid is None:
+            return None
         db = get_db()
-        user = await db["users"].find_one({"_id": ObjectId(user_id)})
+        user = await db["users"].find_one({"_id": oid})
         if not user:
             return None
 
@@ -158,7 +180,7 @@ class UserService:
         updated = list(existing.union(allergies))
 
         await db["users"].update_one(
-            {"_id": ObjectId(user_id)},
+            {"_id": oid},
             {
                 "$set": {
                     "allergies": updated,
@@ -173,8 +195,11 @@ class UserService:
 
     @staticmethod
     async def remove_allergies(user_id: str, allergies: list[str]):
+        oid = _to_object_id(user_id)
+        if oid is None:
+            return None
         db = get_db()
-        user = await db["users"].find_one({"_id": ObjectId(user_id)})
+        user = await db["users"].find_one({"_id": oid})
         if not user:
             return None
 
@@ -182,7 +207,7 @@ class UserService:
         updated = [a for a in current if a not in allergies]
 
         await db["users"].update_one(
-            {"_id": ObjectId(user_id)},
+            {"_id": oid},
             {
                 "$set": {
                     "allergies": updated,
@@ -197,8 +222,11 @@ class UserService:
 
     @staticmethod
     async def add_countries(user_id: str, countries: list[str]):
+        oid = _to_object_id(user_id)
+        if oid is None:
+            return None
         db = get_db()
-        user = await db["users"].find_one({"_id": ObjectId(user_id)})
+        user = await db["users"].find_one({"_id": oid})
         if not user:
             return None
 
@@ -206,7 +234,7 @@ class UserService:
         updated = list(existing.union(countries))
 
         await db["users"].update_one(
-            {"_id": ObjectId(user_id)},
+            {"_id": oid},
             {
                 "$set": {
                     "countries": updated,
@@ -221,8 +249,11 @@ class UserService:
 
     @staticmethod
     async def remove_countries(user_id: str, countries: list[str]):
+        oid = _to_object_id(user_id)
+        if oid is None:
+            return None
         db = get_db()
-        user = await db["users"].find_one({"_id": ObjectId(user_id)})
+        user = await db["users"].find_one({"_id": oid})
         if not user:
             return None
 
@@ -230,7 +261,7 @@ class UserService:
         updated = [c for c in current if c not in countries]
 
         await db["users"].update_one(
-            {"_id": ObjectId(user_id)},
+            {"_id": oid},
             {
                 "$set": {
                     "countries": updated,

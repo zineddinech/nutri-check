@@ -2,31 +2,193 @@ import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import "./../styles/Products.css";
 import "./../styles/Background.css";
+import "./../styles/ProductDetailModal.css";
 import {
   getProductsByIndex,
   getProductsSearched,
+  getProductsSearchedByCategory,
 } from "../services/productService";
 import { getConnectedUser } from "../services/authService";
 import {
   addFavorite,
   removeFavorite,
   getUserFavorites,
+  getFavoriteCount,
 } from "../services/favoritesService";
+import ImageCache from "../services/imageCache";
+import { fetchImageFromOFF, fetchImageByProductName } from "../services/imageService";
+import ProductDetailModal from "./ProductDetailModal";
 
-const ImageWithLoader = ({ src, alt, fallbackIcon }) => {
-  const [isLoaded, setIsLoaded] = useState(false);
-  const [hasError, setHasError] = useState(false);
+// Fonction pour obtenir la couleur du Nutriscore (couleurs flashy)
+const getNutriscoreColor = (grade) => {
+  const colors = {
+    a: "#00C853", // Vert flashy
+    b: "#76FF03", // Vert lime vif
+    c: "#FFD600", // Jaune vif
+    d: "#FF9100", // Orange vif
+    e: "#FF1744", // Rouge vif
+  };
+  return colors[grade?.toLowerCase()] || "#78909C"; // Gris bleuté par défaut
+};
 
-  if (!src) {
-    return (
-      <div className="no-image-placeholder">
-        <span className="no-image-icon">📷</span>
-        <span>Pas d'image</span>
-      </div>
-    );
+// Fonction pour obtenir la lettre du Nutriscore
+const getNutriscoreLetter = (product) => {
+  const grade = product.nutrition_grade_fr || product.nutriscore_grade;
+  if (grade && ["a", "b", "c", "d", "e"].includes(grade.toLowerCase())) {
+    return grade.toUpperCase();
+  }
+  return "?";
+};
+
+// Composant pour afficher le nombre de favoris
+const FavoriteCount = ({ productId, isFavorite }) => {
+  const [count, setCount] = useState(null);
+  const [initialFavorite, setInitialFavorite] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    getFavoriteCount(productId)
+      .then((data) => {
+        if (!cancelled) {
+          setCount(data.favorite_count);
+          setInitialFavorite(isFavorite);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setCount(0);
+          setInitialFavorite(isFavorite);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [productId]);
+
+  // Ajuster le count quand isFavorite change
+  useEffect(() => {
+    if (count === null || initialFavorite === null) return;
+
+    if (isFavorite && !initialFavorite) {
+      setCount((c) => c + 1);
+      setInitialFavorite(true);
+    } else if (!isFavorite && initialFavorite) {
+      setCount((c) => Math.max(0, c - 1));
+      setInitialFavorite(false);
+    }
+  }, [isFavorite]);
+
+  if (count === null) {
+    return <div className="favorite-count-display">-</div>;
   }
 
-  if (hasError) {
+  return (
+    <div className="favorite-count-display">
+      <span className="favorite-count-heart">♥</span>
+      <span className="favorite-count-number">{count}</span>
+    </div>
+  );
+};
+
+const ImageWithLoader = ({ code, alt, productName }) => {
+  const [isLoaded, setIsLoaded] = useState(false);
+  const [image, setImage] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [hasError, setHasError] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    let timeoutId = null;
+    setIsLoading(true);
+    setHasError(false);
+    setImage(null);
+    setIsLoaded(false);
+
+    const handleTimeout = () => {
+      if (!cancelled && !image) {
+        setHasError(true);
+        setIsLoading(false);
+      }
+    };
+
+    const loadImage = async () => {
+      // 1. Vérifier le cache d'abord
+      if (code) {
+        const cachedImg = ImageCache.getImage(code);
+        if (cachedImg) {
+          if (timeoutId) clearTimeout(timeoutId);
+          if (!cancelled) {
+            setImage(cachedImg);
+            setIsLoading(false);
+          }
+          return;
+        }
+
+        // Vérifier si marqué comme sans image
+        if (ImageCache.hasNoImage(code)) {
+          if (timeoutId) clearTimeout(timeoutId);
+          if (!cancelled) {
+            setHasError(true);
+            setIsLoading(false);
+          }
+          return;
+        }
+      }
+
+      // 2. Charger depuis OFF par code
+      if (code) {
+        const img = await fetchImageFromOFF(code);
+        if (!cancelled) {
+          if (img) {
+            if (timeoutId) clearTimeout(timeoutId);
+            ImageCache.setImage(code, img);
+            setHasError(false);
+            setImage(img);
+            setIsLoading(false);
+            return;
+          }
+        }
+      }
+
+      // 3. Fallback: chercher par nom
+      if (productName) {
+        const img = await fetchImageByProductName(productName);
+        if (!cancelled) {
+          if (img) {
+            if (timeoutId) clearTimeout(timeoutId);
+            if (code) ImageCache.setImage(code, img);
+            setHasError(false);
+            setImage(img);
+            setIsLoading(false);
+            return;
+          }
+        }
+      }
+
+      // 4. Aucune image trouvée
+      if (!cancelled) {
+        if (code) ImageCache.setNoImage(code);
+        setHasError(true);
+        if (timeoutId) clearTimeout(timeoutId);
+        setIsLoading(false);
+      }
+    };
+
+    if (code || productName) {
+      timeoutId = setTimeout(handleTimeout, 5000);
+      loadImage();
+    } else {
+      setHasError(true);
+      setIsLoading(false);
+    }
+
+    return () => {
+      cancelled = true;
+      if (timeoutId) clearTimeout(timeoutId);
+    };
+  }, [code, productName]);
+
+  if (hasError || (!isLoading && !image)) {
     return (
       <div className="no-image-placeholder">
         <span className="no-image-icon">📷</span>
@@ -38,9 +200,8 @@ const ImageWithLoader = ({ src, alt, fallbackIcon }) => {
   return (
     <>
       {!isLoaded && <div className="image-skeleton"></div>}
-
       <img
-        src={src}
+        src={image}
         alt={alt}
         className={`product-image ${isLoaded ? "visible" : ""}`}
         loading="lazy"
@@ -63,10 +224,12 @@ function Products() {
   const [page, setPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState("");
   const [activeSearch, setActiveSearch] = useState("");
+  const [searchByCategory, setSearchByCategory] = useState(false);
   const [loading, setLoading] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [favorites, setFavorites] = useState(new Set());
   const [currentUser, setCurrentUser] = useState(null);
+  const [selectedProductId, setSelectedProductId] = useState(null);
 
   const observerRef = useRef();
   const loadingRef = useRef(null);
@@ -74,12 +237,6 @@ function Products() {
   const loadingStateRef = useRef(loading);
   const pageRef = useRef(page);
   const hasMoreRef = useRef(hasMore);
-
-  const DEFAULT_IMAGE =
-    "https://via.placeholder.com/150/e0e0e0/757575?text=Produit";
-
-  const API_BASE = "http://localhost:8000";
-  const getLocalImage = (code) => `${API_BASE}/images/${code}.jpg`;
 
   /** ----------- Charger l'utilisateur et ses favoris ----------- */
   useEffect(() => {
@@ -145,12 +302,10 @@ function Products() {
           preloadedPages.current.delete(targetPage);
         } else {
           if (activeSearch.trim()) {
-            data = await getProductsSearched(
-              activeSearch,
-              targetPage,
-              100,
-              filter
-            );
+            const searchFn = searchByCategory
+              ? getProductsSearchedByCategory
+              : getProductsSearched;
+            data = await searchFn(activeSearch, targetPage, 100, filter);
           } else {
             data = await getProductsByIndex(sort, targetPage, 100, filter);
           }
@@ -158,7 +313,7 @@ function Products() {
 
         const arr = Array.isArray(data)
           ? data
-          : data?.data ?? data?.items ?? [];
+          : (data?.data ?? data?.items ?? []);
 
         if (arr.length === 0) {
           setHasMore(false);
@@ -190,9 +345,15 @@ function Products() {
             if (!preloadedPages.current.has(next)) {
               (async () => {
                 try {
-                  const nextData = activeSearch.trim()
-                    ? await getProductsSearched(activeSearch, next, 100, filter)
-                    : await getProductsByIndex(sort, next, 100, filter);
+                  let nextData;
+                  if (activeSearch.trim()) {
+                    const searchFn = searchByCategory
+                      ? getProductsSearchedByCategory
+                      : getProductsSearched;
+                    nextData = await searchFn(activeSearch, next, 100, filter);
+                  } else {
+                    nextData = await getProductsByIndex(sort, next, 100, filter);
+                  }
                   preloadedPages.current.set(next, nextData);
                 } catch {
                   /* silencieux */
@@ -210,7 +371,7 @@ function Products() {
         loadingStateRef.current = false;
       }
     },
-    [activeSearch, sortField, sortOrder, filter]
+    [activeSearch, sortField, sortOrder, filter, searchByCategory],
   );
 
   /** ----------- Scroll infini ----------- */
@@ -244,7 +405,7 @@ function Products() {
     hasMoreRef.current = true;
     preloadedPages.current.clear();
     loadMoreProducts(false, true, 1);
-  }, [sort, activeSearch, filter, loadMoreProducts]);
+  }, [sort, activeSearch, filter, searchByCategory, loadMoreProducts]);
 
   /** ----------- Premier chargement ----------- */
   useEffect(() => {
@@ -271,7 +432,11 @@ function Products() {
 
   /** ----------- Navigation vers détail produit ----------- */
   const handleProductClick = (productId) => {
-    navigate(`/produits/${productId}`);
+    setSelectedProductId(productId);
+  };
+
+  const handleCloseModal = () => {
+    setSelectedProductId(null);
   };
 
   /** ----------- Tri et filtrage ----------- */
@@ -279,18 +444,19 @@ function Products() {
     // Filtrer les produits sans nutriscore si on trie par nutriscore
     .filter((p) => {
       if (sortField.includes("nutriscore")) {
-        const v = p.nutriscore_score ?? p.nutriscore;
-        const n = Number(v);
-        return Number.isFinite(n);
+        const grade = p.nutrition_grade_fr || p.nutriscore_grade;
+        return grade && ["a", "b", "c", "d", "e"].includes(grade.toLowerCase());
       }
       return true;
     })
     .sort((a, b) => {
       const getName = (p) => (p.product_name ?? p.name ?? "").toString();
-      const getNutriNumber = (p) => {
-        const v = p.nutriscore_score ?? p.nutriscore;
-        const n = Number(v);
-        return Number.isFinite(n) ? n : null;
+      const getNutriGrade = (p) => {
+        const grade = p.nutrition_grade_fr || p.nutriscore_grade;
+        if (grade && ["a", "b", "c", "d", "e"].includes(grade.toLowerCase())) {
+          return grade.toLowerCase();
+        }
+        return null;
       };
 
       let comparison = 0;
@@ -300,16 +466,16 @@ function Products() {
         sortField.includes("product_name")
       ) {
         if (sortField.includes("nutriscore")) {
-          const na = getNutriNumber(a);
-          const nb = getNutriNumber(b);
-          if (na === null && nb === null) {
+          const ga = getNutriGrade(a);
+          const gb = getNutriGrade(b);
+          if (ga === null && gb === null) {
             comparison = getName(a).localeCompare(getName(b));
-          } else if (na === null) {
+          } else if (ga === null) {
             comparison = 1;
-          } else if (nb === null) {
+          } else if (gb === null) {
             comparison = -1;
           } else {
-            comparison = na - nb;
+            comparison = ga.localeCompare(gb);
           }
         } else if (sortField.includes("product_name")) {
           comparison = getName(a).localeCompare(getName(b));
@@ -355,22 +521,30 @@ function Products() {
           </div>
 
           <div className="search-bar">
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              onKeyPress={handleKeyPress}
-              placeholder="Rechercher un produit..."
-              className="search-input"
-            />
-            <button onClick={handleSearch} className="search-button">
-              🔍 Rechercher
-            </button>
-            {activeSearch && (
-              <button onClick={handleClearSearch} className="clear-button">
-                ✕
+            <div className="search-bar-row">
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                onKeyPress={handleKeyPress}
+                placeholder="Rechercher un produit..."
+                className="search-input"
+              />
+              <button onClick={handleSearch} className="search-button" title="Rechercher">
+                🔍
               </button>
-            )}
+              <button
+                className={`search-mode-button ${searchByCategory ? "category-mode" : ""}`}
+                onClick={() => setSearchByCategory(!searchByCategory)}
+              >
+                {searchByCategory ? "Par catégorie" : "Par pertinence"}
+              </button>
+              {activeSearch && (
+                <button onClick={handleClearSearch} className="clear-button">
+                  ✕
+                </button>
+              )}
+            </div>
           </div>
 
           <div className="toolbar-right">
@@ -396,7 +570,16 @@ function Products() {
         </div>
 
         <div className="products-main">
-          {displayedProducts.length === 0 && !loading ? (
+          {loading && products.length === 0 ? (
+            <div className="search-loading-state">
+              <div className="spinner"></div>
+              <p className="search-loading-text">
+                {activeSearch
+                  ? `Recherche de "${activeSearch}" en cours...`
+                  : "Chargement des produits..."}
+              </p>
+            </div>
+          ) : displayedProducts.length === 0 ? (
             <div className="empty-state">
               <div className="empty-state__text">
                 {activeSearch
@@ -422,7 +605,8 @@ function Products() {
                   product.compatibility ?? product.compatibility_score ?? 0;
                 const isFavorite = favorites.has(code);
 
-                const imageUrl = code ? getLocalImage(code) : null;
+                const nutriscoreLetter = getNutriscoreLetter(product);
+                const nutriscoreColor = getNutriscoreColor(nutriscoreLetter);
 
                 return (
                   <div
@@ -431,23 +615,36 @@ function Products() {
                     onClick={() => handleProductClick(code)}
                     style={{ cursor: "pointer" }}
                   >
-                    <button
-                      className={`favorite-button ${
-                        isFavorite ? "favorite-active" : ""
-                      }`}
-                      onClick={(e) => handleToggleFavorite(e, code)}
-                    >
-                      {isFavorite ? "❤️" : "🤍"}
-                    </button>
-
-                    <div className="compatibility">Nutriscore {nutri}</div>
-
-                    <div className="product-image-container">
-                      <ImageWithLoader src={imageUrl} alt={name} />
+                    <div className="card-header">
+                      <div
+                        className="nutriscore-circle"
+                        style={{ backgroundColor: nutriscoreColor }}
+                        title={`Nutri-Score ${nutriscoreLetter}`}
+                      >
+                        {nutriscoreLetter}
+                      </div>
+                      <button
+                        className={`favorite-button-top ${
+                          isFavorite ? "favorite-active" : ""
+                        }`}
+                        onClick={(e) => handleToggleFavorite(e, code)}
+                      >
+                        {isFavorite ? "❤️" : "🤍"}
+                      </button>
                     </div>
 
-                    <div className="product-title">{name}</div>
-                    <div className="nutriscore">Favorites: 10 fois</div>
+                    <div className="product-image-container">
+                      <ImageWithLoader
+                        code={code}
+                        alt={name}
+                        productName={name}
+                      />
+                    </div>
+
+                    <div className="card-footer-anchored">
+                      <div className="product-title">{name}</div>
+                      <FavoriteCount productId={code} isFavorite={isFavorite} />
+                    </div>
                   </div>
                 );
               })}
@@ -469,6 +666,13 @@ function Products() {
           </div>
         </div>
       </div>
+
+      {selectedProductId && (
+        <ProductDetailModal
+          productId={selectedProductId}
+          onClose={handleCloseModal}
+        />
+      )}
     </div>
   );
 }

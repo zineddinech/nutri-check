@@ -1,8 +1,31 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import "./../styles/Recipes.css";
 import "./../styles/Background.css";
 import { getProductsSearched } from "../services/productService";
-import { useNavigate } from "react-router-dom";
+import ImageCache from "../services/imageCache";
+import { fetchImageFromOFF, fetchImageByProductName } from "../services/imageService";
+import ProductDetailModal from "./ProductDetailModal";
+
+// Fonction pour obtenir la couleur du Nutriscore (couleurs flashy)
+const getNutriscoreColor = (grade) => {
+  const colors = {
+    a: "#00C853", // Vert flashy
+    b: "#76FF03", // Vert lime vif
+    c: "#FFD600", // Jaune vif
+    d: "#FF9100", // Orange vif
+    e: "#FF1744", // Rouge vif
+  };
+  return colors[grade?.toLowerCase()] || "#78909C"; // Gris bleuté par défaut
+};
+
+// Fonction pour obtenir la lettre du Nutriscore
+const getNutriscoreLetter = (product) => {
+  const grade = product.nutrition_grade_fr || product.nutriscore_grade;
+  if (grade && ["a", "b", "c", "d", "e"].includes(grade.toLowerCase())) {
+    return grade.toUpperCase();
+  }
+  return "?";
+};
 
 function Recipes() {
   const [recipeInput, setRecipeInput] = useState("");
@@ -14,13 +37,118 @@ function Recipes() {
   const [matchedProducts, setMatchedProducts] = useState({}); // index -> product or null
   const [notFoundIngredients, setNotFoundIngredients] = useState([]);
   const [infoMessage, setInfoMessage] = useState(null);
-  const navigate = useNavigate();
+  const [selectedProductId, setSelectedProductId] = useState(null);
 
   const DEFAULT_IMAGE =
     "https://via.placeholder.com/150/e0e0e0/757575?text=Produit";
 
-  const API_BASE = "http://localhost:8000";
-  const getLocalImage = (code) => `${API_BASE}/images/${code}.jpg`;
+  // Composant ImageWithLoader identique à Products.jsx et favorites.jsx
+  const ImageWithLoader = ({ code, alt, productName }) => {
+    const [isLoaded, setIsLoaded] = useState(false);
+    const [image, setImage] = useState(null);
+    const [isLoading, setIsLoading] = useState(true);
+    const [hasError, setHasError] = useState(false);
+
+    useEffect(() => {
+      let cancelled = false;
+      setIsLoading(true);
+      setHasError(false);
+      setImage(null);
+      setIsLoaded(false);
+
+      const loadImage = async () => {
+        // 1. Vérifier le cache d'abord
+        if (code) {
+          const cachedImg = ImageCache.getImage(code);
+          if (cachedImg) {
+            if (!cancelled) {
+              setImage(cachedImg);
+              setIsLoading(false);
+            }
+            return;
+          }
+
+          // Vérifier si marqué comme sans image
+          if (ImageCache.hasNoImage(code)) {
+            if (!cancelled) {
+              setHasError(true);
+              setIsLoading(false);
+            }
+            return;
+          }
+        }
+
+        // 2. Charger depuis OFF par code
+        if (code) {
+          const img = await fetchImageFromOFF(code);
+          if (!cancelled) {
+            if (img) {
+              ImageCache.setImage(code, img);
+              setHasError(false);
+              setImage(img);
+              setIsLoading(false);
+              return;
+            }
+          }
+        }
+
+        // 3. Fallback: chercher par nom
+        if (productName) {
+          const img = await fetchImageByProductName(productName);
+          if (!cancelled) {
+            if (img) {
+              if (code) ImageCache.setImage(code, img);
+              setHasError(false);
+              setImage(img);
+              setIsLoading(false);
+              return;
+            }
+          }
+        }
+
+        // 4. Aucune image trouvée
+        if (!cancelled) {
+          if (code) ImageCache.setNoImage(code);
+          setHasError(true);
+          setIsLoading(false);
+        }
+      };
+
+      if (code || productName) {
+        loadImage();
+      } else {
+        setHasError(true);
+        setIsLoading(false);
+      }
+
+      return () => {
+        cancelled = true;
+      };
+    }, [code, productName]);
+
+    if (hasError || (!isLoading && !image)) {
+      return (
+        <div className="no-image-placeholder">
+          <span className="no-image-icon">📷</span>
+          <span>Pas d'image</span>
+        </div>
+      );
+    }
+
+    return (
+      <>
+        {!isLoaded && <div className="image-skeleton"></div>}
+        <img
+          src={image}
+          alt={alt}
+          className={`product-image ${isLoaded ? "visible" : ""}`}
+          loading="lazy"
+          onLoad={() => setIsLoaded(true)}
+          onError={() => setHasError(true)}
+        />
+      </>
+    );
+  };
 
   // Appeler l'IA pour analyser la recette
   const analyzeRecipe = async (recipe) => {
@@ -319,13 +447,24 @@ function Recipes() {
     }
 
     setMatchesLoading(true);
-    const matched = {};
-    const notFound = [];
+    setMatchedProducts({});
+    setNotFoundIngredients([]);
 
-    // limiter le nombre de requêtes simultanées si nécessaire
+    let completedCount = 0;
+    const totalCount = ingredients.length;
+
     const promises = ingredients.map(async (ing, idx) => {
       const rawName = ing?.name || ing || "";
       const query = normalizeIngredientName(rawName) || rawName;
+
+      const updateProduct = (product) => {
+        setMatchedProducts((prev) => ({ ...prev, [idx]: product }));
+      };
+
+      const markNotFound = () => {
+        setMatchedProducts((prev) => ({ ...prev, [idx]: null }));
+        setNotFoundIngredients((prev) => [...prev, rawName]);
+      };
 
       try {
         // recherche floue : on demande 3 résultats et on score chacun
@@ -341,7 +480,7 @@ function Recipes() {
 
           // Si le meilleur score est trop faible, on considère qu'on n'a pas trouvé
           if (scored[0].score >= 50) {
-            matched[idx] = scored[0].product;
+            updateProduct(scored[0].product);
           } else {
             // Essayer une recherche par tokens
             const tokens = query.split(/\s+/).filter(Boolean);
@@ -364,11 +503,8 @@ function Recipes() {
                 // ignore
               }
             }
-            if (found) matched[idx] = found;
-            else {
-              matched[idx] = null;
-              notFound.push(rawName);
-            }
+            if (found) updateProduct(found);
+            else markNotFound();
           }
         } else {
           // si rien, tenter une recherche par token (dernier mot)
@@ -393,23 +529,20 @@ function Recipes() {
             }
           }
 
-          if (found) matched[idx] = found;
-          else {
-            matched[idx] = null;
-            notFound.push(rawName);
-          }
+          if (found) updateProduct(found);
+          else markNotFound();
         }
       } catch (e) {
-        matched[idx] = null;
-        notFound.push(rawName);
+        markNotFound();
+      } finally {
+        completedCount++;
+        if (completedCount === totalCount) {
+          setMatchesLoading(false);
+        }
       }
     });
 
     await Promise.all(promises);
-
-    setMatchedProducts(matched);
-    setNotFoundIngredients(notFound);
-    setMatchesLoading(false);
   }
 
   const handleClear = () => {
@@ -564,37 +697,37 @@ function Recipes() {
                   <div className="ingredients-grid">
                     {recipeResult.ingredients.map((ingredient, index) => {
                       const prod = matchedProducts[index];
+                      const isSearching = matchesLoading && prod === undefined;
 
                       if (prod) {
                         const code = prod.code ?? prod._id ?? prod.id;
-                        const imageUrl = code ? getLocalImage(code) : null;
                         const productId = prod._id || prod.id;
-                        const nutri =
-                          prod.nutriscore_score ||
-                          prod.nutrition_grade_fr ||
-                          "—";
+                        const nutriscoreLetter = getNutriscoreLetter(prod);
+                        const nutriscoreColor = getNutriscoreColor(nutriscoreLetter);
 
                         return (
                           <div
                             key={index}
                             className="product-card-recipe"
-                            onClick={() => navigate(`/product/${productId}`)}
+                            onClick={() => setSelectedProductId(productId)}
                             style={{ cursor: "pointer" }}
                           >
+                            <div className="card-header-recipe">
+                              <div
+                                className="nutriscore-circle"
+                                style={{ backgroundColor: nutriscoreColor }}
+                                title={`Nutri-Score ${nutriscoreLetter}`}
+                              >
+                                {nutriscoreLetter}
+                              </div>
+                            </div>
+
                             <div className="product-image-container">
-                              {!imageUrl ? (
-                                <div className="image-skeleton"></div>
-                              ) : (
-                                <img
-                                  src={imageUrl}
-                                  alt={prod.product_name || "produit"}
-                                  className="product-image visible"
-                                  loading="lazy"
-                                  onError={(e) => {
-                                    e.target.src = DEFAULT_IMAGE;
-                                  }}
-                                />
-                              )}
+                              <ImageWithLoader
+                                code={code}
+                                alt={prod.product_name || "produit"}
+                                productName={prod.product_name}
+                              />
                             </div>
 
                             <div className="product-info-recipe">
@@ -609,15 +742,31 @@ function Recipes() {
                                   {prod.brands}
                                 </div>
                               )}
-                              <div className="product-nutri">
-                                Nutri-Score: {nutri}
-                              </div>
                             </div>
                           </div>
                         );
                       }
 
-                      // Affichage pour ingrédients non trouvés
+                      // Affichage pendant le chargement
+                      if (isSearching) {
+                        return (
+                          <div
+                            key={index}
+                            className="product-card-recipe loading-card"
+                          >
+                            <div className="loading-content">
+                              <div className="image-skeleton"></div>
+                              <div className="ingredient-tag">
+                                {ingredient.name}
+                              </div>
+                              <div className="product-title skeleton-text"></div>
+                              <div className="product-brand skeleton-text skeleton-short"></div>
+                            </div>
+                          </div>
+                        );
+                      }
+
+                      // Affichage pour ingrédients non trouvés après la recherche
                       return (
                         <div
                           key={index}
@@ -659,22 +808,6 @@ function Recipes() {
                   <p className="no-data">Aucune étape détectée</p>
                 </div>
               )}
-
-              {/* Bouton d'action */}
-              <div className="recipe-actions">
-                <button
-                  className="btn-save-recipe"
-                  onClick={() => alert("Fonctionnalité à venir")}
-                >
-                  💾 Sauvegarder la recette
-                </button>
-                <button
-                  className="btn-share-recipe"
-                  onClick={() => alert("Fonctionnalité à venir")}
-                >
-                  📤 Partager
-                </button>
-              </div>
             </div>
           </div>
         )}
@@ -701,6 +834,13 @@ function Recipes() {
           </div>
         )}
       </div>
+
+      {selectedProductId && (
+        <ProductDetailModal
+          productId={selectedProductId}
+          onClose={() => setSelectedProductId(null)}
+        />
+      )}
     </div>
   );
 }

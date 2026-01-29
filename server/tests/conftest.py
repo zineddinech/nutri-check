@@ -9,6 +9,7 @@ Contient :
 
 import mongomock
 import pytest
+import pytest_asyncio
 from fastapi.testclient import TestClient
 from pymongo import MongoClient
 
@@ -43,6 +44,14 @@ class AsyncMongoCollection:
 
     def find(self, *args, **kwargs):
         cursor = self._collection.find(*args, **kwargs)
+        return AsyncMongoCursor(cursor)
+
+    def aggregate(self, pipeline, *args, **kwargs):
+        """
+        Aggregate returns a cursor directly (not a coroutine), matching Motor behavior.
+        This allows chaining .to_list() on the result.
+        """
+        cursor = self._collection.aggregate(pipeline, *args, **kwargs)
         return AsyncMongoCursor(cursor)
 
     def __getattr__(self, item):
@@ -87,9 +96,18 @@ def override_db(monkeypatch, mock_db):
     """
     Force tous les services à utiliser la base mockée pendant les tests.
     """
-    from app.services import user_service
+    from app.services import (
+        favorite_service,
+        product_service,
+        shopping_trip_service,
+        user_service,
+    )
 
+    # Tous les services doivent pointer vers la même base Mongo simulée.
     monkeypatch.setattr(user_service, "get_db", lambda: mock_db)
+    monkeypatch.setattr(favorite_service, "get_db", lambda: mock_db)
+    monkeypatch.setattr(product_service, "get_db", lambda: mock_db)
+    monkeypatch.setattr(shopping_trip_service, "get_db", lambda: mock_db)
 
 
 # ============================================================
@@ -116,12 +134,25 @@ def real_db():
 # ============================================================
 
 
+class JSONFriendlyTestClient(TestClient):
+    """
+    Extension de TestClient pour accepter l'argument `json` sur delete().
+
+    Certaines versions de httpx / TestClient ne permettent pas de passer
+    json= directement à delete(), alors que nos tests e2e le font.
+    Cette classe harmonise le comportement en déléguant à request().
+    """
+
+    def delete(self, url, **kwargs):
+        return super().request("DELETE", url, **kwargs)
+
+
 @pytest.fixture(scope="module")
 def client():
     """
     Crée un client HTTP de test pour l’API FastAPI.
     """
-    test_client = TestClient(app)
+    test_client = JSONFriendlyTestClient(app)
     yield test_client
 
 
@@ -160,6 +191,42 @@ def sample_allergens():
     return ["Crustaceans", "Peanut", "Matsutake", "Milk", "Eggs"]
 
 
+FAVORITE_E2E_PRODUCTS = [
+    {
+        "_id": "test_product_id",
+        "product_name": "Test Product",
+        "brands": "Test",
+        "nutriscore_score": 0,
+        "ecoscore_score": 50,
+    },
+    {
+        "_id": "test_product_123",
+        "product_name": "Test Product 123",
+        "brands": "Test",
+        "nutriscore_score": 0,
+        "ecoscore_score": 50,
+    },
+    {
+        "_id": "workflow_product",
+        "product_name": "Workflow Product",
+        "brands": "Test",
+        "nutriscore_score": 0,
+        "ecoscore_score": 50,
+    },
+]
+
+
+@pytest_asyncio.fixture
+async def seed_favorite_products(mock_db):
+    """Insert products required by favorite e2e tests into mock_db."""
+    for p in FAVORITE_E2E_PRODUCTS:
+        try:
+            await mock_db["products"].insert_one(p.copy())
+        except Exception:
+            pass
+    return mock_db
+
+
 class AsyncMongoCursor:
     def __init__(self, cursor):
         self.cursor = cursor
@@ -168,5 +235,15 @@ class AsyncMongoCursor:
         self.cursor = self.cursor.sort(*args, **kwargs)
         return self
 
+    def skip(self, n):
+        self.cursor = self.cursor.skip(n)
+        return self
+
+    def limit(self, n):
+        self.cursor = self.cursor.limit(n)
+        return self
+
     async def to_list(self, length=None):
+        if length is not None:
+            return list(self.cursor)[:length]
         return list(self.cursor)

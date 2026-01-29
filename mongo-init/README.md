@@ -1,39 +1,15 @@
 # MongoDB Initialization
 
-Ce dossier contient le script d'initialisation de la base de données MongoDB pour le projet Nutri-Check.
+## Scripts
 
-## Fichiers
+### init-mongo.sh
 
-- **init-mongo.sh** : Script bash d'initialisation automatique de MongoDB
-- **dev-sample.gz** : Échantillon local des données de produits (optionnel)
+Initialise la base de données lors du premier démarrage Docker. Charge les données, filtre les produits invalides, nettoie les champs (conserve uniquement les 15 essentiels) et crée les index.
 
-## Fonctionnement
+### filter-mongo.sh
 
-Le script `init-mongo.sh` effectue les opérations suivantes :
+Nettoie une collection existante en supprimant tous les champs sauf les 15 essentiels, normalise les pays et crée les index de performance.
 
-1. **Vérifie si l'initialisation a déjà été effectuée** via un fichier flag
-2. **Charge les données** depuis l'une des deux sources :
-   - Données locales (`dev-sample.gz`) si `DATA_SOURCE_URL` n'est pas défini
-   - Données distantes téléchargées depuis `DATA_SOURCE_URL` si défini
+### report-mongo.py
 
-## Utilisation
-
-### Avec Docker Compose
-
-Le script est automatiquement exécuté lors du démarrage du conteneur MongoDB via Docker.
-
-### Variables d'environnement
-
-- `DATA_SOURCE_URL` : URL de téléchargement du dump complet de la base de données
-  - Si non défini : utilise les données locales
-  - Exemple : `https://static.openfoodfacts.org/data/openfoodfacts-mongodbdump.gz`
-
-### Base de données par défaut
-
-- **Base** : `nutridb`
-- **Collection** : `products`
-
-## Notes
-
-- Le script garantit une initialisation unique de la base de données
-- L'authentification est configurée parallèlement par Docker lors du démarrage
+Analyse le dump MongoDB et affiche les statistiques des données.

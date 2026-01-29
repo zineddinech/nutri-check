@@ -142,6 +142,53 @@ This document defines the main functional use cases for the Nutri-Check system. 
 
     ![Pipeline Flowchart](./docs/uc_05.svg)
 
+
+#### Use Case-06: Generate Personalized AI Recipe
+* **ID:** UC-06
+* **Name:** Generate Personalized AI Recipe
+* **Actor:** Registered User
+* **Summary:** The user inputs a dish description or product name. The system uses Artificial Intelligence to generate a detailed recipe (ingredients, steps, calories) customized to the user's dietary restrictions (allergens, diet).
+* **Preconditions:**
+    * The user is logged in (required to access dietary preferences). 
+    * The user is on the "Recettes" (Recipes) page.
+* **Basic Flow:**
+    1. The user enters a description of the recipe or a product name (e.g., "tomates oeuf sauté") in the "Describe your recipe" text area.
+    2. The user clicks the "Analyser la recette" (Analyze recipe) button. 
+    3. The system retrieves the user's profile data: excluded allergens (e.g., gluten) and dietary regime (e.g., vegan). 
+    4. The system constructs a prompt containing the user's input and their dietary constraints and sends it to the AI model. 
+    5. The AI processes the request to ensure the recipe excludes dangerous allergens and adheres to the diet. 
+    6. The system receives the structured response (JSON) containing the title, list of ingredients, preparation steps, and calorie count.
+    7. The system displays the "Ingrédients" (Ingredients) list and "Étapes à suivre" (Steps to follow) on the interface. 
+    8. The system displays the calculated calories (e.g., in a badge like "0 cal" or the actual count).
+* **Alternative Flows:**
+    * **5a. Content Policy Violation:** If the user inputs inappropriate content, the AI/System refuses to generate the text and displays a warning. 
+    * **6a. Ingredient Not Found:** As seen in the UI, if a generated ingredient cannot be mapped to a local database item, the system may display an alert like "Non trouvé localement" (Not found locally).
+    * **6b. Service Unavailable:** If the AI service fails to respond, the system displays "Analysis failed, please try again."
+* **Postconditions:**
+    * The user is presented with a structured recipe safe for their specific diet.
+
+    ![Pipeline Flowchart](./docs/uc_06.svg)
+
+#### Use Case-07: Locate Product in Nearby Stores
+* **ID:** UC-07
+* **Name:** Locate Product in Nearby Stores
+* **Actor:** Guest, Registered User
+* **Summary:** The system uses the product's barcode/ID and the user's geolocation to find nearby supermarkets or stores that stock the item, displaying them on an interactive map.
+* **Preconditions:**
+    * The user is viewing a Product Details page (e.g., "Crepe au chocolat"). 
+    * The user has granted location permissions to the browser/app (or has a saved address in their profile).
+* **Basic Flow:**
+    1. The system identifies the current product using its Barcode (e.g., 0205671008663) or brand (e.g., "Paysan Breton"). 
+    2. The system retrieves the user's current geolocation. 
+    3. The system queries an external database or inventory API to find retailers within a specific radius that stock this specific barcode or brand. 
+    4. The system updates the Map Component (similar to the "Pays d'origine" map) to focus on the user's area. 
+    5. The system places pins/markers on the map representing nearby stores (e.g., Carrefour, Leclerc). 
+    6. The user clicks on a marker to view store details (name, distance, estimated price).
+* **Postconditions:**
+    * The user knows which nearby locations potentially sell the product.
+
+    ![Pipeline Flowchart](./docs/uc_07.svg)
+
 ---
 
 ## User Stories
@@ -158,3 +205,11 @@ This document defines the main functional use cases for the Nutri-Check system. 
 6.  As a logged-in user, I want to be able to create a "shopping trip" list and add products to it, so that I can prepare my purchases and check the compatibility of my entire cart.
 
 7.  As a user who has forgotten my password, I want to be able to reset my password using my email address, so that I can regain access to my account.
+
+8. As a logged-in user with dietary restrictions, I want the recipe generator to automatically exclude ingredients I am allergic to (using my profile data), so that I can discover new meal ideas without risking my health. 
+
+9. As a user, I want to describe a dish or input a product name into a text field and have an AI provide the step-by-step preparation instructions and calorie count, so that I can easily cook meals based on what I have in my pantry.
+
+10. As a shopper, I want to see a map of nearby stores that sell the product I am viewing, so that I can buy it immediately without visiting multiple supermarkets.
+
+11. As a user, I want to be able to click on a map pin to see the store's name and address, so that I can easily navigate there.

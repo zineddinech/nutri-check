@@ -4,61 +4,11 @@ import { getProductById } from "../services/productService";
 import "./../styles/ProductDetail.css";
 import { MapContainer, TileLayer, Marker, Popup, GeoJSON } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
+import ImageCache from "../services/imageCache";
+import { fetchImageFromOFF, fetchImageByProductName } from "../services/imageService";
 
 const OFF_PRODUCT_BY_CODE = "https://world.openfoodfacts.org/api/v2/product/";
-const FALLBACK_IMG =
-  "https://via.placeholder.com/400/e0e0e0/757575?text=Image+non+disponible";
-
-// DONNÉES D'EXEMPLE POUR LA CARTE (10 Points autour de Paris)
-const VENDOR_LOCATIONS = [
-  {
-    id: 1,
-    name: "Supermarché Saint-Honoré (75001)",
-    coords: [48.863, 2.337],
-  },
-
-  {
-    id: 2,
-    name: "Épicerie Saint-Sulpice (75006)",
-    coords: [48.851, 2.333],
-  },
-
-  { id: 3, name: "Hyper Clichy (75018)", coords: [48.887, 2.33] },
-
-  { id: 4, name: "Marché Italie 2 (75013)", coords: [48.828, 2.358] },
-
-  {
-    id: 5,
-    name: "Carrefour Billancourt (92100)",
-    coords: [48.835, 2.228],
-  },
-
-  { id: 6, name: "Monop' Château (94300)", coords: [48.847, 2.438] },
-
-  {
-    id: 7,
-    name: "Super U Stade de France (93200)",
-    coords: [48.92, 2.361],
-  },
-
-  {
-    id: 8,
-    name: "Market Versailles Rive Droite (78000)",
-    coords: [48.805, 2.12],
-  },
-
-  {
-    id: 9,
-    name: "Grande Surface Puteaux (92800)",
-    coords: [48.891, 2.238],
-  },
-
-  {
-    id: 10,
-    name: "Boutique Aéroport Orly (94310)",
-    coords: [48.73, 2.37],
-  },
-];
+const FALLBACK_IMG = "./default-image.png"; // Image par défaut locale
 
 function ProductDetail() {
   const { id } = useParams();
@@ -101,71 +51,78 @@ function ProductDetail() {
     };
   }, [id]);
 
-  // 2) Charger l’image OFF *après* que le produit soit là (en parallèle)
+  // 2) Charger l'image OFF *après* que le produit soit là
   useEffect(() => {
     if (!product) return;
 
     let cancelled = false;
-
-    const loadImageByCode = async (code) => {
-      try {
-        const resp = await fetch(`${OFF_PRODUCT_BY_CODE}${code}.json`);
-        if (!resp.ok) throw new Error("Image non disponible");
-
-        const data = await resp.json();
-        const prod = data.product || {};
-
-        const img =
-          prod.image_front_url ||
-          prod.image_front_small_url ||
-          prod.image_url ||
-          FALLBACK_IMG;
-
-        if (!cancelled) setImage(img);
-      } catch (e) {
-        if (!cancelled) setImage(FALLBACK_IMG);
-      }
-    };
-
-    const loadImageByName = async (name) => {
-      try {
-        const response = await fetch(
-          `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(
-            name
-          )}&search_simple=1&action=process&json=1&page_size=1`
-        );
-
-        if (!response.ok) throw new Error("Image non disponible");
-
-        const data = await response.json();
-        const img =
-          data?.products?.[0]?.image_front_url ||
-          data?.products?.[0]?.image_url ||
-          FALLBACK_IMG;
-
-        if (!cancelled) setImage(img);
-      } catch {
-        if (!cancelled) setImage(FALLBACK_IMG);
-      }
-    };
-
+    let timeoutId = null;
     const code = product?.code;
     const name = product?.product_name;
 
-    // on reset l’état image à chaque nouveau produit
     setImage(null);
     setImageLoaded(false);
 
-    if (code) {
-      loadImageByCode(code);
-    } else if (name) {
-      loadImageByName(name);
+    const handleTimeout = () => {
+      if (!cancelled && !image) {
+        setImage(FALLBACK_IMG);
+      }
+    };
+
+    const loadImage = async () => {
+      // 1. Vérifier le cache d'abord
+      if (code) {
+        const cachedImg = ImageCache.getImage(code);
+        if (cachedImg) {
+          if (!cancelled) setImage(cachedImg);
+          return;
+        }
+      }
+
+      // 2. Charger depuis OFF par code
+      if (code) {
+        const img = await fetchImageFromOFF(code);
+        if (!cancelled) {
+          if (img) {
+            ImageCache.setImage(code, img);
+            setImage(img);
+            if (timeoutId) clearTimeout(timeoutId);
+            return;
+          }
+        }
+      }
+
+      // 3. Fallback: chercher par nom
+      if (name) {
+        const img = await fetchImageByProductName(name);
+        if (!cancelled) {
+          if (img) {
+            if (code) ImageCache.setImage(code, img);
+            setImage(img);
+            if (timeoutId) clearTimeout(timeoutId);
+            return;
+          }
+        }
+      }
+
+      // 4. Aucune image trouvée - utiliser image par défaut
+      if (!cancelled) {
+        if (code) ImageCache.setNoImage(code);
+        setImage(FALLBACK_IMG);
+        if (timeoutId) clearTimeout(timeoutId);
+      }
+    };
+
+    if (code || name) {
+      timeoutId = setTimeout(handleTimeout, 5000);
+      loadImage();
     } else {
       setImage(FALLBACK_IMG);
     }
 
     return () => {
       cancelled = true;
+      if (timeoutId) clearTimeout(timeoutId);
     };
   }, [product]);
 
@@ -218,7 +175,7 @@ function ProductDetail() {
   }
 
   return (
-    <div className="product-detail-container" style={{ overflowY: "scroll" }}>
+    <div className="product-detail-container">
       <button className="back-button-top" onClick={() => navigate(-1)}>
         <span className="button-icon">←</span>
         Retour aux produits
@@ -287,7 +244,7 @@ function ProductDetail() {
                     className="nutriscore-badge"
                     style={{
                       backgroundColor: getNutriscoreColor(
-                        product.nutriscore_grade
+                        product.nutriscore_grade,
                       ),
                     }}
                   >
@@ -346,7 +303,7 @@ function ProductDetail() {
               <NutritionCard
                 icon="🍬"
                 label="Sucres"
-                value={product.sugars_100g}
+                value={product.sugars_100g || product.sugar_100g}
                 unit="g"
                 color="#6bcf7f"
                 gradient="linear-gradient(135deg, #6bcf7f 0%, #4ecdc4 100%)"
@@ -488,12 +445,12 @@ function ProductMap({ countries }) {
 
         try {
           const response = await fetch(
-            `https://raw.githubusercontent.com/johan/world.geo.json/master/countries.geo.json`
+            `https://raw.githubusercontent.com/johan/world.geo.json/master/countries.geo.json`,
           );
           const geojson = await response.json();
           // Filtrer par le pays
           const countryGeo = geojson.features.find(
-            (f) => f.properties.name === country
+            (f) => f.properties.name === country,
           );
           if (countryGeo) {
             data[country] = countryGeo;
@@ -545,7 +502,7 @@ function ProductMap({ countries }) {
     });
 
     layer.bindPopup(
-      `<div style="font-weight: bold;">${feature.properties.name}</div>`
+      `<div style="font-weight: bold;">${feature.properties.name}</div>`,
     );
   };
 

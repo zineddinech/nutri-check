@@ -1,10 +1,12 @@
 import json
 import os
-from typing import Any
+from typing import Any, Optional
 
 import httpx
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
+
+from ...services.product_service import ProductService
 
 router = APIRouter()
 
@@ -21,10 +23,19 @@ class RecipeRequest(BaseModel):
     recipe: str
 
 
+class MatchedProduct(BaseModel):
+    id: str
+    product_name: str
+    code: Optional[str] = None
+    nutriscore_grade: Optional[str] = None
+    brands: Optional[str] = None
+
+
 class Ingredient(BaseModel):
     name: str
     quantity: str
     calories: int
+    matched_product: Optional[MatchedProduct] = None
 
 
 class RecipeResponse(BaseModel):
@@ -186,18 +197,54 @@ Réponds UNIQUEMENT avec le JSON, sans texte supplémentaire.
                 ),
             )
 
+        # Rechercher les produits correspondants pour chaque ingrédient.
+        # IMPORTANT : les erreurs de base de données ne doivent pas faire échouer
+        # toute l'analyse de recette (tests unitaires, environnements sans Mongo, etc.).
+        ingredients_with_products = []
+        for ing in recipe_data.get("ingredients", []):
+            ingredient_name = ing.get("name", "")
+            matched_product: Optional[MatchedProduct] = None
+
+            try:
+                if ingredient_name:
+                    # Recherche exacte d'abord
+                    products = await ProductService.search_products_exact(
+                        ingredient_name, page=1, page_size=1
+                    )
+                    # Si pas de résultat exact, recherche par pertinence
+                    if not products:
+                        products = await ProductService.search_products(
+                            ingredient_name, page=1, page_size=1
+                        )
+
+                    if products:
+                        p = products[0]
+                        matched_product = MatchedProduct(
+                            id=str(p.get("_id", "")),
+                            product_name=p.get("product_name", ""),
+                            code=p.get("code"),
+                            nutriscore_grade=p.get("nutrition_grade_fr"),
+                            brands=p.get("brands"),
+                        )
+            except Exception:
+                # On ignore toute erreur de recherche produit : l'analyse de recette
+                # reste valable même sans correspondance en base.
+                matched_product = None
+
+            ingredients_with_products.append(
+                Ingredient(
+                    name=ingredient_name,
+                    quantity=ing.get("quantity", ""),
+                    calories=ing.get("calories", 0),
+                    matched_product=matched_product,
+                )
+            )
+
         # Valider et construire la réponse
         return RecipeResponse(
             recipeName=recipe_data.get("recipeName", "Ma recette"),
             totalCalories=recipe_data.get("totalCalories", 0),
-            ingredients=[
-                Ingredient(
-                    name=ing.get("name", ""),
-                    quantity=ing.get("quantity", ""),
-                    calories=ing.get("calories", 0),
-                )
-                for ing in recipe_data.get("ingredients", [])
-            ],
+            ingredients=ingredients_with_products,
             steps=recipe_data.get("steps", []),
         )
 

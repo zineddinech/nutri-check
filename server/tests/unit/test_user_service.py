@@ -181,27 +181,64 @@ async def test_generate_reset_code():
     assert code.isdigit()
 
 
+# ----------------------- Generate reset code tests -----------------------
 @pytest.mark.asyncio
-async def test_request_password_reset_success(monkeypatch):
+async def test_generate_reset_code_length():
+    """
+    Vérifie que le code généré a une longueur de 6.
+    """
+    code = UserService.generate_reset_code()
+    assert len(code) == 6
 
-    fake_user = {
-        "_id": "123",
+
+@pytest.mark.asyncio
+async def test_generate_reset_code_is_digit():
+    """
+    Vérifie que le code généré contient uniquement des chiffres.
+    """
+    code = UserService.generate_reset_code()
+    assert code.isdigit()
+
+
+@pytest.mark.asyncio
+async def test_generate_reset_code_custom_length():
+    """
+    Vérifie que la longueur personnalisée fonctionne.
+    """
+    code = UserService.generate_reset_code(length=10)
+    assert len(code) == 10
+    assert code.isdigit()
+
+
+@pytest.mark.asyncio
+async def test_generate_reset_code_uniqueness():
+    """
+    Vérifie que deux codes générés sont différents.
+    """
+    code1 = UserService.generate_reset_code()
+    code2 = UserService.generate_reset_code()
+    assert code1 != code2
+
+
+# ----------------------- Request password reset tests -----------------------
+@pytest.mark.asyncio
+async def test_request_password_reset_success(mock_db, monkeypatch):
+    """
+    Teste que la demande de réinitialisation de mot de passe réussit.
+    """
+    # Créer un utilisateur
+    user_data = {
         "email": "test@test.com",
+        "username": "testuser",
+        "first_name": "Test",
+        "last_name": "User",
+        "hashed_password": "hashed_pw",
+        "is_active": True,
+        "created_at": "2025-10-31T00:00:00Z",
+        "updated_at": None,
+        "allergies": [],
     }
-
-    class FakeCollection:
-        async def find_one(self, query):
-            return fake_user
-
-        async def update_one(self, *args, **kwargs):
-            return True
-
-    class FakeDB:
-        def __getitem__(self, name):
-            return FakeCollection()
-
-    # Mock get_db
-    monkeypatch.setattr("app.services.user_service.get_db", lambda: FakeDB())
+    await mock_db["users"].insert_one(user_data)
 
     # Mock email sender
     monkeypatch.setattr(
@@ -209,5 +246,422 @@ async def test_request_password_reset_success(monkeypatch):
     )
 
     result = await UserService.request_password_reset("test@test.com")
-
     assert result is True
+
+    # Vérifier que le code de réinitialisation a été défini
+    user = await mock_db["users"].find_one({"email": "test@test.com"})
+    assert "reset_code" in user
+    assert "reset_expires" in user
+    assert len(user["reset_code"]) == 6
+
+
+@pytest.mark.asyncio
+async def test_request_password_reset_user_not_found(mock_db, monkeypatch):
+    """
+    Teste que la demande échoue si l'utilisateur n'existe pas.
+    """
+    monkeypatch.setattr(
+        "app.services.user_service.send_reset_email", lambda email, code: True
+    )
+
+    result = await UserService.request_password_reset("nonexistent@test.com")
+    assert result is False
+
+
+@pytest.mark.asyncio
+async def test_request_password_reset_email_sent(mock_db, monkeypatch):
+    """
+    Teste que l'email est bien envoyé lors de la demande.
+    """
+    user_data = {
+        "email": "test@test.com",
+        "username": "testuser",
+        "first_name": "Test",
+        "last_name": "User",
+        "hashed_password": "hashed_pw",
+        "is_active": True,
+        "created_at": "2025-10-31T00:00:00Z",
+        "updated_at": None,
+        "allergies": [],
+    }
+    await mock_db["users"].insert_one(user_data)
+
+    email_sent = []
+
+    def mock_send_email(email, code):
+        email_sent.append({"email": email, "code": code})
+
+    monkeypatch.setattr("app.services.user_service.send_reset_email", mock_send_email)
+
+    await UserService.request_password_reset("test@test.com")
+    assert len(email_sent) == 1
+    assert email_sent[0]["email"] == "test@test.com"
+    assert len(email_sent[0]["code"]) == 6
+
+
+# ----------------------- Reset password tests -----------------------
+@pytest.mark.asyncio
+async def test_reset_password_success(mock_db):
+    """
+    Teste que la réinitialisation du mot de passe réussit avec un code valide.
+    """
+    from datetime import datetime, timedelta, timezone
+
+    # Créer un utilisateur avec un code de réinitialisation
+    hashed_pw = UserService.hash_password("oldpassword123")
+    code = UserService.generate_reset_code()
+    expires = (datetime.now(timezone.utc) + timedelta(minutes=15)).isoformat()
+
+    user_data = {
+        "email": "test@test.com",
+        "username": "testuser",
+        "first_name": "Test",
+        "last_name": "User",
+        "hashed_password": hashed_pw,
+        "is_active": True,
+        "created_at": "2025-10-31T00:00:00Z",
+        "updated_at": None,
+        "allergies": [],
+        "reset_code": code,
+        "reset_expires": expires,
+    }
+    await mock_db["users"].insert_one(user_data)
+
+    # Réinitialiser le mot de passe
+    result = await UserService.reset_password("test@test.com", code, "newpassword123")
+    assert result is True
+
+    # Vérifier que le mot de passe a changé
+    user = await mock_db["users"].find_one({"email": "test@test.com"})
+    assert UserService.verify_password("newpassword123", user["hashed_password"])
+    assert not UserService.verify_password("oldpassword123", user["hashed_password"])
+
+    # Vérifier que le code de réinitialisation a été supprimé
+    assert "reset_code" not in user or user.get("reset_code") == ""
+    assert "reset_expires" not in user or user.get("reset_expires") == ""
+
+
+@pytest.mark.asyncio
+async def test_reset_password_invalid_code(mock_db):
+    """
+    Teste que la réinitialisation échoue avec un code invalide.
+    """
+    from datetime import datetime, timedelta, timezone
+
+    code = UserService.generate_reset_code()
+    expires = (datetime.now(timezone.utc) + timedelta(minutes=15)).isoformat()
+
+    user_data = {
+        "email": "test@test.com",
+        "username": "testuser",
+        "first_name": "Test",
+        "last_name": "User",
+        "hashed_password": "hashed_pw",
+        "is_active": True,
+        "created_at": "2025-10-31T00:00:00Z",
+        "updated_at": None,
+        "allergies": [],
+        "reset_code": code,
+        "reset_expires": expires,
+    }
+    await mock_db["users"].insert_one(user_data)
+
+    result = await UserService.reset_password(
+        "test@test.com", "wrongcode", "newpassword123"
+    )
+    assert result is False
+
+
+@pytest.mark.asyncio
+async def test_reset_password_expired_code(mock_db):
+    """
+    Teste que la réinitialisation échoue avec un code expiré.
+    """
+    from datetime import datetime, timedelta, timezone
+
+    code = UserService.generate_reset_code()
+    expires = (
+        datetime.now(timezone.utc) - timedelta(minutes=20)
+    ).isoformat()  # Code expiré
+
+    user_data = {
+        "email": "test@test.com",
+        "username": "testuser",
+        "first_name": "Test",
+        "last_name": "User",
+        "hashed_password": "hashed_pw",
+        "is_active": True,
+        "created_at": "2025-10-31T00:00:00Z",
+        "updated_at": None,
+        "allergies": [],
+        "reset_code": code,
+        "reset_expires": expires,
+    }
+    await mock_db["users"].insert_one(user_data)
+
+    result = await UserService.reset_password("test@test.com", code, "newpassword123")
+    assert result is False
+
+
+@pytest.mark.asyncio
+async def test_reset_password_user_not_found(mock_db):
+    """
+    Teste que la réinitialisation échoue si l'utilisateur n'existe pas.
+    """
+    result = await UserService.reset_password(
+        "nonexistent@test.com", "123456", "newpassword123"
+    )
+    assert result is False
+
+
+@pytest.mark.asyncio
+async def test_reset_password_no_reset_fields(mock_db):
+    """
+    Teste que la réinitialisation échoue si les champs de réinitialisation n'existent pas.
+    """
+    user_data = {
+        "email": "test@test.com",
+        "username": "testuser",
+        "first_name": "Test",
+        "last_name": "User",
+        "hashed_password": "hashed_pw",
+        "is_active": True,
+        "created_at": "2025-10-31T00:00:00Z",
+        "updated_at": None,
+        "allergies": [],
+    }
+    await mock_db["users"].insert_one(user_data)
+
+    result = await UserService.reset_password(
+        "test@test.com", "123456", "newpassword123"
+    )
+    assert result is False
+
+
+# ----------------------- Authenticate user tests -----------------------
+@pytest.mark.asyncio
+async def test_authenticate_user_success(mock_db):
+    """
+    Teste que l'authentification réussit avec le bon mot de passe.
+    """
+    password = "testpassword123"
+    hashed_pw = UserService.hash_password(password)
+
+    user_data = {
+        "email": "test@test.com",
+        "username": "testuser",
+        "first_name": "Test",
+        "last_name": "User",
+        "hashed_password": hashed_pw,
+        "is_active": True,
+        "created_at": "2025-10-31T00:00:00Z",
+        "updated_at": None,
+        "allergies": [],
+    }
+    await mock_db["users"].insert_one(user_data)
+
+    token = await UserService.authenticate_user("test@test.com", password)
+    assert token is not None
+    assert isinstance(token, str)
+    assert len(token) > 0
+
+
+@pytest.mark.asyncio
+async def test_authenticate_user_wrong_password(mock_db):
+    """
+    Teste que l'authentification échoue avec un mauvais mot de passe.
+    """
+    password = "testpassword123"
+    hashed_pw = UserService.hash_password(password)
+
+    user_data = {
+        "email": "test@test.com",
+        "username": "testuser",
+        "first_name": "Test",
+        "last_name": "User",
+        "hashed_password": hashed_pw,
+        "is_active": True,
+        "created_at": "2025-10-31T00:00:00Z",
+        "updated_at": None,
+        "allergies": [],
+    }
+    await mock_db["users"].insert_one(user_data)
+
+    token = await UserService.authenticate_user("test@test.com", "wrongpassword")
+    assert token is None
+
+
+@pytest.mark.asyncio
+async def test_authenticate_user_user_not_found(mock_db):
+    """
+    Teste que l'authentification échoue si l'utilisateur n'existe pas.
+    """
+    token = await UserService.authenticate_user("nonexistent@test.com", "anypassword")
+    assert token is None
+
+
+@pytest.mark.asyncio
+async def test_authenticate_user_token_contains_email(mock_db):
+    """
+    Teste que le token contient l'email de l'utilisateur.
+    """
+    password = "testpassword123"
+    hashed_pw = UserService.hash_password(password)
+
+    user_data = {
+        "email": "test@test.com",
+        "username": "testuser",
+        "first_name": "Test",
+        "last_name": "User",
+        "hashed_password": hashed_pw,
+        "is_active": True,
+        "created_at": "2025-10-31T00:00:00Z",
+        "updated_at": None,
+        "allergies": [],
+    }
+    await mock_db["users"].insert_one(user_data)
+
+    token = await UserService.authenticate_user("test@test.com", password)
+    decoded = UserService.decode_access_token(token)
+    assert decoded is not None
+    assert decoded["email"] == "test@test.com"
+
+
+# ----------------------- Create user tests -----------------------
+@pytest.mark.asyncio
+async def test_create_user_success(mock_db):
+    """
+    Teste que la création d'un utilisateur réussit.
+    """
+    from app.schemas.user import UserCreate
+
+    user_create = UserCreate(
+        email="newuser@test.com",
+        username="newuser",
+        first_name="New",
+        last_name="User",
+        password="newpassword123",
+    )
+
+    created_user = await UserService.create_user(user_create)
+
+    assert created_user.email == "newuser@test.com"
+    assert created_user.username == "newuser"
+    assert created_user.first_name == "New"
+    assert created_user.last_name == "User"
+    assert created_user.is_active is True
+    assert created_user.allergies == []
+    assert created_user.id is not None
+
+
+@pytest.mark.asyncio
+async def test_create_user_password_hashed(mock_db):
+    """
+    Teste que le mot de passe de l'utilisateur est bien hashé.
+    """
+    from app.schemas.user import UserCreate
+
+    user_create = UserCreate(
+        email="newuser@test.com",
+        username="newuser",
+        first_name="New",
+        last_name="User",
+        password="newpassword123",
+    )
+
+    await UserService.create_user(user_create)
+
+    user = await mock_db["users"].find_one({"email": "newuser@test.com"})
+    assert user["hashed_password"] != "newpassword123"
+    assert UserService.verify_password("newpassword123", user["hashed_password"])
+
+
+@pytest.mark.asyncio
+async def test_create_user_can_authenticate(mock_db):
+    """
+    Teste que l'utilisateur créé peut se connecter.
+    """
+    from app.schemas.user import UserCreate
+
+    user_create = UserCreate(
+        email="newuser@test.com",
+        username="newuser",
+        first_name="New",
+        last_name="User",
+        password="newpassword123",
+    )
+
+    await UserService.create_user(user_create)
+
+    token = await UserService.authenticate_user("newuser@test.com", "newpassword123")
+    assert token is not None
+
+
+@pytest.mark.asyncio
+async def test_create_user_timestamps(mock_db):
+    """
+    Teste que les timestamps de création sont définis.
+    """
+    from app.schemas.user import UserCreate
+
+    user_create = UserCreate(
+        email="newuser@test.com",
+        username="newuser",
+        first_name="New",
+        last_name="User",
+        password="newpassword123",
+    )
+
+    created_user = await UserService.create_user(user_create)
+
+    assert created_user.created_at is not None
+    assert created_user.updated_at is None
+
+
+@pytest.mark.asyncio
+async def test_create_user_default_allergies(mock_db):
+    """
+    Teste que la liste d'allergies par défaut est vide.
+    """
+    from app.schemas.user import UserCreate
+
+    user_create = UserCreate(
+        email="newuser@test.com",
+        username="newuser",
+        first_name="New",
+        last_name="User",
+        password="newpassword123",
+    )
+
+    created_user = await UserService.create_user(user_create)
+
+    assert created_user.allergies == []
+
+
+@pytest.mark.asyncio
+async def test_create_user_unique_ids(mock_db):
+    """
+    Teste que chaque utilisateur créé a un ID unique.
+    """
+    from app.schemas.user import UserCreate
+
+    user_create1 = UserCreate(
+        email="user1@test.com",
+        username="user1",
+        first_name="User",
+        last_name="One",
+        password="password123",
+    )
+
+    user_create2 = UserCreate(
+        email="user2@test.com",
+        username="user2",
+        first_name="User",
+        last_name="Two",
+        password="password123",
+    )
+
+    created_user1 = await UserService.create_user(user_create1)
+    created_user2 = await UserService.create_user(user_create2)
+
+    assert created_user1.id != created_user2.id

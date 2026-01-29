@@ -89,20 +89,24 @@
 /* ==================== BARRE DE RECHERCHE ==================== */
 .search-bar {
   display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: center;
+
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+
+  width: 100%;
+  max-width: 500px;
+}
+
+.search-bar-row {
+  display: flex;
   gap: 10px;
   align-items: center;
-  
-  /* MODIFICATIONS ICI */
-  /* On enlève flex: 1 qui la rendait dépendante des autres */
-  /* flex: 1;  <-- SUPPRIMER CETTE LIGNE */
-  
-  position: absolute;       /* Sort du flux normal */
-  left: 50%;               /* Pousse le bord gauche à 50% du parent */
-  transform: translateX(-50%); /* Recule de 50% de sa propre largeur pour se centrer parfaitement */
-  
-  width: 100%;             /* S'assure qu'elle a de la place */
-  max-width: 500px;        /* Garde votre limite de largeur */
-  justify-content: center; /* Centre le contenu interne */
+  width: 100%;
+  justify-content: center;
 }
 
 .search-input {
@@ -165,6 +169,37 @@
   box-shadow: 0 6px 20px rgba(231, 76, 60, 0.4);
 }
 
+.search-mode-button {
+  width: 140px;
+  min-width: 140px;
+  padding: 12px 16px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+  transition: all 0.3s ease;
+  white-space: nowrap;
+  text-align: center;
+}
+
+.search-mode-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+}
+
+.search-mode-button.category-mode {
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+  box-shadow: 0 4px 12px rgba(245, 87, 108, 0.3);
+}
+
+.search-mode-button.category-mode:hover {
+  box-shadow: 0 6px 20px rgba(245, 87, 108, 0.4);
+}
+
 /* ==================== TOOLBAR RIGHT ==================== */
 .toolbar-right {
   display: flex;
@@ -223,12 +258,9 @@
 
 /* ==================== ZONE PRINCIPALE ==================== */
 .products-main {
-  max-height: calc(100vh - 200px);
-  overflow-y: auto;
   width: 100%;
-  padding-top: 12px;
+  padding-top: 70px;
   box-sizing: border-box;
-  scrollbar-color: green;
 }
 
 /* ==================== GRILLE DE PRODUITS ==================== */
@@ -266,33 +298,56 @@
   border-color: #667eea;
 }
 
-/* ==================== BOUTON FAVORI ==================== */
-.favorite-button {
+/* ==================== HEADER CARTE (Nutriscore + Favori) ==================== */
+.card-header {
   position: absolute;
-  bottom: 10px;
+  top: 10px;
+  left: 10px;
   right: 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   z-index: 10;
-  background: white;
-  border: 2px solid #e0e0e0;
+}
+
+/* ==================== CERCLE NUTRISCORE ==================== */
+.nutriscore-circle {
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
-  width: 40px;
-  height: 40px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 20px;
+  color: white;
+  font-weight: 700;
+  font-size: 16px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  text-transform: uppercase;
+}
+
+/* ==================== BOUTON FAVORI (en haut à droite) ==================== */
+.favorite-button-top {
+  background: white;
+  border: 2px solid #e0e0e0;
+  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
   cursor: pointer;
   transition: all 0.2s ease;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
-.favorite-button:hover {
+.favorite-button-top:hover {
   transform: scale(1.1);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   border-color: #ff6b9d;
 }
 
-.favorite-button.favorite-active {
+.favorite-button-top.favorite-active {
   background: linear-gradient(135deg, #ff6b9d 0%, #c44569 100%);
   border-color: #ff6b9d;
   animation: heartBeat 0.3s ease;
@@ -394,10 +449,37 @@
   color: #222;
 }
 
-.nutriscore {
-  margin-top: 4px;
-  font-size: 0.95rem;
-  color: #444;
+/* ==================== FOOTER ANCRÉ EN BAS ==================== */
+.card-footer-anchored {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding-top: 8px;
+  width: 100%;
+}
+
+/* ==================== COMPTEUR DE FAVORIS ==================== */
+.favorite-count-display {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  margin-top: auto;
+  padding-top: 12px;
+  color: #888;
+  font-size: 0.9rem;
+}
+
+.favorite-count-heart {
+  color: #ff6b9d;
+  font-size: 1rem;
+}
+
+.favorite-count-number {
+  font-weight: 600;
+  color: #666;
 }
 
 /* ==================== ÉTATS ==================== */
@@ -421,6 +503,39 @@
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
   text-align: center;
   border: 2px solid #e9ecef;
+}
+
+/* ==================== ÉTAT DE CHARGEMENT RECHERCHE ==================== */
+.search-loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 50vh;
+  width: 100%;
+  padding: 32px 16px;
+  box-sizing: border-box;
+}
+
+.search-loading-state .spinner {
+  width: 60px;
+  height: 60px;
+  border: 5px solid rgba(102, 126, 234, 0.2);
+  border-top-color: #667eea;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+.search-loading-text {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: #667eea;
+  margin-top: 20px;
+  text-align: center;
+  background: rgba(255, 255, 255, 0.95);
+  padding: 16px 32px;
+  border-radius: 12px;
+  box-shadow: 0 4px 16px rgba(102, 126, 234, 0.15);
 }
 
 .end-message {

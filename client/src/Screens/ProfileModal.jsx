@@ -287,7 +287,7 @@ function ProfileModal({ onClose }) {
                         className="dropdown-item-btn"
                         onClick={() => handleAddAllergyFromList(s)}
                       >
-                        {translateAllergy(s)}
+                        {s}
                       </button>
                     ))}
                   {!loadingAllergySuggestions &&
@@ -302,7 +302,7 @@ function ProfileModal({ onClose }) {
               {user.allergies?.length > 0 ? (
                 user.allergies.map((a) => (
                   <div key={a} className="tag">
-                    ⚠️ {translateAllergy(a)}
+                    ⚠️ {a}
                     <button
                       className="tag-remove-btn"
                       onClick={() => handleRemoveAllergy(a)}

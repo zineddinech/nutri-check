@@ -526,7 +526,7 @@ function Products() {
                 checked={filter}
                 onChange={() => setFilter((s) => !s)}
                 className="filter-checkbox"
-                disabled={isSearchLoading}
+                disabled={isSearchLoading || loading}
               />
               Filtrer selon profil
             </label>
@@ -558,9 +558,9 @@ function Products() {
                 onClick={handleSearch}
                 className="search-button"
                 title="Rechercher"
-                disabled={isSearchLoading}
+                disabled={isSearchLoading || loading}
               >
-                {isSearchLoading ? (
+                {isSearchLoading || loading ? (
                   <span className="search-spinner"></span>
                 ) : (
                   "🔍"
@@ -569,7 +569,7 @@ function Products() {
               <button
                 className={`search-mode-button ${searchByCategory ? "category-mode" : ""}`}
                 onClick={() => setSearchByCategory(!searchByCategory)}
-                disabled={isSearchLoading}
+                disabled={isSearchLoading || loading}
               >
                 {searchByCategory ? "Par catégorie" : "Par pertinence"}
               </button>
@@ -586,7 +586,7 @@ function Products() {
               value={sortField}
               onChange={(e) => setSortField(e.target.value)}
               className="sort-select"
-              disabled={isSearchLoading}
+              disabled={isSearchLoading || loading}
             >
               <option value="nutriscore_score">Nutri-Score</option>
               <option value="product_name">Nom du produit</option>
@@ -598,7 +598,7 @@ function Products() {
               onClick={() => setSortOrder(sortOrder === "asc" ? "desc" : "asc")}
               className="sort-direction-button"
               title={sortOrder === "asc" ? "Ascendant" : "Descendant"}
-              disabled={isSearchLoading}
+              disabled={isSearchLoading || loading}
             >
               {sortOrder === "asc" ? "↑ Ascendant" : "↓ Descendant"}
             </button>
@@ -688,12 +688,6 @@ function Products() {
           )}
 
           <div ref={loadingRef} className="loading-sentinel">
-            {loading && (
-              <div className="loading-spinner">
-                <div className="spinner"></div>
-                <p>Chargement...</p>
-              </div>
-            )}
             {!hasMore && products.length > 0 && (
               <div className="end-message">
                 Tous les produits ont été chargés

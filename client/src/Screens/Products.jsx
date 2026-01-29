@@ -529,7 +529,6 @@ function Products() {
                 disabled={isSearchLoading}
               />
               Filtrer selon profil
-              {isSearchLoading && <span className="mini-spinner"></span>}
             </label>
 
             <div className="product-count">
@@ -572,13 +571,7 @@ function Products() {
                 onClick={() => setSearchByCategory(!searchByCategory)}
                 disabled={isSearchLoading}
               >
-                {isSearchLoading ? (
-                  <span className="mini-spinner"></span>
-                ) : searchByCategory ? (
-                  "Par catégorie"
-                ) : (
-                  "Par pertinence"
-                )}
+                {searchByCategory ? "Par catégorie" : "Par pertinence"}
               </button>
               {activeSearch && (
                 <button onClick={handleClearSearch} className="clear-button">
@@ -607,13 +600,7 @@ function Products() {
               title={sortOrder === "asc" ? "Ascendant" : "Descendant"}
               disabled={isSearchLoading}
             >
-              {isSearchLoading ? (
-                <span className="mini-spinner"></span>
-              ) : sortOrder === "asc" ? (
-                "↑ Ascendant"
-              ) : (
-                "↓ Descendant"
-              )}
+              {sortOrder === "asc" ? "↑ Ascendant" : "↓ Descendant"}
             </button>
           </div>
         </div>

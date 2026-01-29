@@ -16,7 +16,10 @@ import {
   getFavoriteCount,
 } from "../services/favoritesService";
 import ImageCache from "../services/imageCache";
-import { fetchImageFromOFF, fetchImageByProductName } from "../services/imageService";
+import {
+  fetchImageFromOFF,
+  fetchImageByProductName,
+} from "../services/imageService";
 import ProductDetailModal from "./ProductDetailModal";
 
 // Fonction pour obtenir la couleur du Nutriscore (couleurs flashy)
@@ -226,6 +229,7 @@ function Products() {
   const [activeSearch, setActiveSearch] = useState("");
   const [searchByCategory, setSearchByCategory] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [isSearchLoading, setIsSearchLoading] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [favorites, setFavorites] = useState(new Set());
   const [currentUser, setCurrentUser] = useState(null);
@@ -352,7 +356,12 @@ function Products() {
                       : getProductsSearched;
                     nextData = await searchFn(activeSearch, next, 100, filter);
                   } else {
-                    nextData = await getProductsByIndex(sort, next, 100, filter);
+                    nextData = await getProductsByIndex(
+                      sort,
+                      next,
+                      100,
+                      filter,
+                    );
                   }
                   preloadedPages.current.set(next, nextData);
                 } catch {
@@ -404,6 +413,7 @@ function Products() {
     setHasMore(true);
     hasMoreRef.current = true;
     preloadedPages.current.clear();
+    setIsSearchLoading(true);
     loadMoreProducts(false, true, 1);
   }, [sort, activeSearch, filter, searchByCategory, loadMoreProducts]);
 
@@ -415,8 +425,9 @@ function Products() {
   }, [products.length, hasMore, loadMoreProducts]);
 
   /** ----------- Gestion recherche ----------- */
-  const handleSearch = () => {
+  const handleSearch = async () => {
     if (searchTerm.trim() !== activeSearch) {
+      setIsSearchLoading(true);
       setActiveSearch(searchTerm.trim());
     }
   };
@@ -424,11 +435,23 @@ function Products() {
   const handleClearSearch = () => {
     setSearchTerm("");
     setActiveSearch("");
+    setIsSearchLoading(false);
   };
 
   const handleKeyPress = (e) => {
     if (e.key === "Enter") handleSearch();
   };
+
+  /** ----------- Désactiver le loading de recherche quand le chargement est terminé ----------- */
+  useEffect(() => {
+    if (!loading && isSearchLoading) {
+      // Délai court pour montrer le spinner brièvement (200ms min)
+      const timer = setTimeout(() => {
+        setIsSearchLoading(false);
+      }, 200);
+      return () => clearTimeout(timer);
+    }
+  }, [loading, isSearchLoading]);
 
   /** ----------- Navigation vers détail produit ----------- */
   const handleProductClick = (productId) => {
@@ -503,6 +526,7 @@ function Products() {
                 checked={filter}
                 onChange={() => setFilter((s) => !s)}
                 className="filter-checkbox"
+                disabled={isSearchLoading || loading}
               />
               Filtrer selon profil
             </label>
@@ -530,12 +554,22 @@ function Products() {
                 placeholder="Rechercher un produit..."
                 className="search-input"
               />
-              <button onClick={handleSearch} className="search-button" title="Rechercher">
-                🔍
+              <button
+                onClick={handleSearch}
+                className="search-button"
+                title="Rechercher"
+                disabled={isSearchLoading || loading}
+              >
+                {isSearchLoading || loading ? (
+                  <span className="search-spinner"></span>
+                ) : (
+                  "🔍"
+                )}
               </button>
               <button
                 className={`search-mode-button ${searchByCategory ? "category-mode" : ""}`}
                 onClick={() => setSearchByCategory(!searchByCategory)}
+                disabled={isSearchLoading || loading}
               >
                 {searchByCategory ? "Par catégorie" : "Par pertinence"}
               </button>
@@ -552,6 +586,7 @@ function Products() {
               value={sortField}
               onChange={(e) => setSortField(e.target.value)}
               className="sort-select"
+              disabled={isSearchLoading || loading}
             >
               <option value="nutriscore_score">Nutri-Score</option>
               <option value="product_name">Nom du produit</option>
@@ -563,6 +598,7 @@ function Products() {
               onClick={() => setSortOrder(sortOrder === "asc" ? "desc" : "asc")}
               className="sort-direction-button"
               title={sortOrder === "asc" ? "Ascendant" : "Descendant"}
+              disabled={isSearchLoading || loading}
             >
               {sortOrder === "asc" ? "↑ Ascendant" : "↓ Descendant"}
             </button>
@@ -652,12 +688,6 @@ function Products() {
           )}
 
           <div ref={loadingRef} className="loading-sentinel">
-            {loading && (
-              <div className="loading-spinner">
-                <div className="spinner"></div>
-                <p>Chargement...</p>
-              </div>
-            )}
             {!hasMore && products.length > 0 && (
               <div className="end-message">
                 Tous les produits ont été chargés

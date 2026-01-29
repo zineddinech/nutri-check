@@ -8,6 +8,11 @@ import {
   addCountry,
   removeCountry,
 } from "../services/authService";
+import translations from "../translations/translations.json";
+
+const CURRENT_LOCALE = "fr";
+const translateAllergy = (englishName) =>
+  translations[CURRENT_LOCALE]?.[englishName] || englishName;
 
 function ProfileModal({ onClose }) {
   const [user, setUser] = useState(null);

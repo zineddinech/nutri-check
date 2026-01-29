@@ -79,6 +79,7 @@ const fieldsToKeep = [
   "ingredients_text",
   "last_modified_t",
   "nutriments",
+  "nutrition_grade_fr",
   "nutriscore_grade",
   "product_name",
   "product_type"

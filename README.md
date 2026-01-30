@@ -13,7 +13,7 @@ EMAIL_ADDRESS=nutri.check.gpstl@gmail.com
 EMAIL_PASSWORD=djcy stnr kgyt vfvk
 EMAIL_HOST=smtp.gmail.com
 EMAIL_PORT=587
-GOOGLE_API_KEY=AIzaSyA1QbmmBS5m9j00WX61NG4M5Fn98HsgMdc
+GOOGLE_API_KEY=
 ```
 
 ## Lancer le projet
